@@ -55,6 +55,7 @@ fun BrowserWebView(
                     allowContentAccess = true
                     javaScriptCanOpenWindowsAutomatically = true
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
                 }
 
                 if (tab.isIncognito) {
@@ -77,6 +78,35 @@ fun BrowserWebView(
                         super.onPageFinished(view, url)
                         if (url != null) {
                             onPageFinished(url, view?.title)
+                        }
+                    }
+
+                    override fun onReceivedHttpError(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                        errorResponse: WebResourceResponse?
+                    ) {
+                        super.onReceivedHttpError(view, request, errorResponse)
+                        val reqUrl = request?.url?.toString() ?: ""
+                        if (request?.isForMainFrame == true && (reqUrl.contains("limited.facebook.com") || errorResponse?.statusCode in 400..599)) {
+                            // Redirect back to working m.facebook.com registration
+                            view?.post {
+                                view.loadUrl("https://m.facebook.com/reg")
+                            }
+                        }
+                    }
+
+                    override fun onReceivedError(
+                        view: WebView?,
+                        errorCode: Int,
+                        description: String?,
+                        failingUrl: String?
+                    ) {
+                        super.onReceivedError(view, errorCode, description, failingUrl)
+                        if (failingUrl?.contains("limited.facebook.com") == true) {
+                            view?.post {
+                                view.loadUrl("https://m.facebook.com/reg")
+                            }
                         }
                     }
 
@@ -132,10 +162,11 @@ fun BrowserWebView(
         },
         update = { webView ->
             if (tab.isDesktopMode) {
-                val desktopUA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                val desktopUA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
                 webView.settings.userAgentString = desktopUA
             } else {
-                webView.settings.userAgentString = null
+                val mobileUA = "Mozilla/5.0 (Linux; Android 14; Mobile; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+                webView.settings.userAgentString = mobileUA
             }
         },
         modifier = modifier

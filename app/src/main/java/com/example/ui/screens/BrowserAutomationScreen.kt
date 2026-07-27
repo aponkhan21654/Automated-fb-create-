@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.content.Context
+import android.view.KeyEvent
 import android.webkit.CookieManager
 import android.webkit.WebStorage
 import android.webkit.WebView
@@ -144,10 +145,10 @@ fun BrowserAutomationScreen(
 
     val mirrorOptions = remember {
         listOf(
-            MirrorOption("⚡ limited.facebook", "https://limited.facebook.com/reg", isFast = true),
-            MirrorOption("m.facebook", "https://m.facebook.com/reg"),
+            MirrorOption("⚡ m.facebook", "https://m.facebook.com/reg", isFast = true),
             MirrorOption("mbasic.facebook", "https://mbasic.facebook.com/reg"),
-            MirrorOption("facebook.com", "https://www.facebook.com/r.php")
+            MirrorOption("facebook.com", "https://www.facebook.com/r.php"),
+            MirrorOption("limited.facebook", "https://limited.facebook.com/reg")
         )
     }
 
@@ -356,6 +357,11 @@ fun BrowserAutomationScreen(
                 onPageFinished = { url, _ ->
                     isLoading = false
                     currentUrl = url
+                    if (url.contains("facebook.com/mreg") || url.contains("facebook.com/reg") || url.contains("facebook.com/r.php")) {
+                        val currentProf = viewModel.currentProfile.value
+                        val script = AutoFillScriptEngine.buildOneTapSmartAutoSignupScript(currentProf)
+                        activeWebView?.evaluateJavascript(script, null)
+                    }
                 },
                 onProgressChanged = { prog -> progress = prog },
                 onReceivedTitle = {},
@@ -448,108 +454,110 @@ fun BrowserAutomationScreen(
                         }
                     }
 
-                    // Expanded Profile Info & Actions
-                    AnimatedVisibility(visible = isExpanded) {
-                        Column {
-                            Spacer(modifier = Modifier.height(4.dp))
+                    // Streamlined One-Tap Auto Signup Control Panel
+                    Column {
+                        Spacer(modifier = Modifier.height(6.dp))
 
+                        // Status Banner
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "DOB: ${profile.dobFormatted}  •  Pass: ${profile.password}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                        text = "👤 Name: ${profile.firstName} ${profile.lastName} (${profile.gender})",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Text(
-                                        text = "ID: ${profile.emailOrPhone}",
+                                        text = "🎂 DOB: ${profile.dobFormatted}  |  🔑 Pass: ${profile.password}",
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                     )
                                 }
 
                                 Surface(
-                                    color = if (isLiveSequentialActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                                    shape = RoundedCornerShape(12.dp)
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(
-                                        text = if (isLiveSequentialActive) "🔄 Loop Active (#$filledCount)" else "Filled: #$filledCount",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
-                                        color = if (isLiveSequentialActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                        text = "#$filledCount Completed",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                        style = MaterialTheme.typography.labelSmall.copy(color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Main Sequential AutoFill Action Buttons
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                // 1. Next & AutoFill (Sequential Step-by-Step)
-                                Button(
-                                    onClick = {
-                                        viewModel.generateNewProfile()
-                                        val newProf = viewModel.currentProfile.value
-                                        val script = AutoFillScriptEngine.buildInjectScript(
-                                            profile = newProf,
-                                            selectors = customSelectors,
-                                            autoSubmit = autoSubmitEnabled
-                                        )
-                                        activeWebView?.evaluateJavascript(script) {
-                                            Toast.makeText(context, "Sequential Live AutoFill #${filledCount + 1} completed!", Toast.LENGTH_SHORT).show()
-                                        }
-                                        viewModel.saveCurrentProfileToDb(status = "Sequential AutoFilled")
-                                        viewModel.incrementFilledCount()
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.3f)
-                                ) {
-                                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Next & Fill", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-
-                                // 2. Continuous Loop Toggle
-                                Button(
-                                    onClick = {
-                                        viewModel.setLiveSequentialActive(!isLiveSequentialActive)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isLiveSequentialActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
-                                    ),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.1f)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isLiveSequentialActive) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(if (isLiveSequentialActive) "Stop" else "Auto Loop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-
-                                // 3. Clear Data Button
-                                OutlinedButton(
-                                    onClick = {
-                                        clearBrowserData(context, activeWebView, currentUrl)
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.0f)
-                                ) {
-                                    Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // PRIMARY ACTION BUTTONS
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // 1. Open Random Token Link Button
+                            Button(
+                                onClick = {
+                                    val randomUrl = AutoFillScriptEngine.getRandomTokenUrl()
+                                    currentUrl = randomUrl
+                                    inputUrl = randomUrl
+                                    viewModel.generateNewProfile()
+                                    activeWebView?.loadUrl(randomUrl)
+                                    Toast.makeText(context, "Opening Random Token Registration Link...", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1.8f)
+                            ) {
+                                Icon(imageVector = Icons.Default.ElectricBolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("🔗 Open Token Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            // 2. Fill Name & DOB
+                            OutlinedButton(
+                                onClick = {
+                                    val currentProf = viewModel.currentProfile.value
+                                    val script = AutoFillScriptEngine.buildOneTapSmartAutoSignupScript(currentProf)
+                                    activeWebView?.evaluateJavascript(script) {
+                                        Toast.makeText(context, "Filled Name & DOB!", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("AutoFill", fontSize = 11.sp)
+                            }
+
+                            // 3. Clear Browser Data
+                            OutlinedButton(
+                                onClick = {
+                                    clearBrowserData(context, activeWebView, currentUrl)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "💡 Zero-Click AutoFill: Fills Name, DOB & Gender automatically, then focuses phone field for completion.",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
                     }
                 }
             }

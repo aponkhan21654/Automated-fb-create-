@@ -220,6 +220,322 @@ object AutoFillScriptEngine {
             })();
         """.trimIndent()
     }
+
+    // Direct click-to-fill into currently focused input or targeted field without coding
+    fun buildInjectSingleValueScript(valueToFill: String): String {
+        val escaped = valueToFill.replace("'", "\\'").replace("\n", " ")
+        return """
+            (async function() {
+                try {
+                    function sleep(minMs, maxMs) {
+                        return new Promise(r => setTimeout(r, Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs));
+                    }
+
+                    var activeEl = document.activeElement;
+                    if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+                        // Find first empty visible input field
+                        var inputs = document.querySelectorAll('input:not([type="hidden"]), textarea');
+                        for (var i = 0; i < inputs.length; i++) {
+                            if (inputs[i].offsetParent !== null && !inputs[i].value) {
+                                activeEl = inputs[i];
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
+                        return 'NO_INPUT_FOCUSED';
+                    }
+
+                    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    activeEl.focus();
+                    await sleep(50, 100);
+
+                    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') ?
+                        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set : null;
+
+                    if (nativeSetter) { nativeSetter.call(activeEl, '$escaped'); } else { activeEl.value = '$escaped'; }
+                    activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    activeEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    activeEl.style.border = '2px solid #10B981';
+                    activeEl.style.backgroundColor = '#ECFDF5';
+
+                    return 'CLICK_FILLED_SUCCESS';
+                } catch(e) {
+                    return 'ERROR: ' + e.message;
+                }
+            })();
+        """.trimIndent()
+    }
+
+    // List of 10 Token Registration Links
+    val TOKEN_MREG_URLS = listOf(
+        "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24&cid=256002347743983&app_version=310&tg=201&cct=1&src=1&soft=hjk",
+        "https://m.facebook.com/mreg?e_token=AbnQFQG4x_sBJ1BS1HgYin1ijehpcfvN7TMPWiX9EUc3ccMDKbce7V9FPzk7AbMoPsA7K5nonavUvw&d_hash=FBA",
+        "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5",
+        "https://m.facebook.com/mreg?e_token=Abm6tgf10M_vK4TV2uawjG-ae8fFrddyzOf_FcUdJbRfjbkIcTrlIUJHoz7w6Vz4so8TOGWIcDgx0Q&d_hash=FBA71FDC8239E901",
+        "https://m.facebook.com/mreg?e_token=Abky_3xr70NBQr4YJM2br-fChpjgWA3dJqiJ6Lm8JJP0XyXEiCg_RIWjY1OtPlcLRduFEgVzOSaDFA&d_hash=FBA71FDC8239E901",
+        "https://m.facebook.com/mreg?e_token=AbkdgkgPLqQ_xmavX1koYXq51xZkP-95Wq96iKw67-6q_CMRimxVmyI8Pa-8jYyE-h7bd9GTcnnylw&d_hash=FBA71FDC8239E901",
+        "https://m.facebook.com/mreg?e_token=AbliUrkbMtSgUBgB0Lh6uh-W5ZR_QiE1rB6pQ8mWYPiNQNIoVH7cnQaPiPq6ufSFa5IxfSeOoqHErg&d_hash=FBA71FDC8239E901",
+        "https://m.facebook.com/mreg?e_token=AbkdgkgPLqQ_xmavX1koYXq51xZkP-95Wq96iKw67-6q_CMRimxVmyI8Pa-8jYyE-h7bd9GTcnnylw&d_hash=FBA71FDC8239E90131BC4314E9B4E92E&cid=256002347743983&app_versio",
+        "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24&cid=256002347743983&app_version=3",
+        "https://m.facebook.com/mreg?e_token=Abky_3xr70NBQr4YJM2br-fChpjgWA3dJqiJ6Lm8JJP0XyXEiCg_RIWjY1OtPlcLRduFEgVzOSaDFA&d_hash=FBA71FDC8239E90131BC"
+    )
+
+    fun getRandomTokenUrl(): String {
+        return TOKEN_MREG_URLS.random()
+    }
+
+    // Zero-click Smart Auto-Signup Script: Fills Name -> Auto Next -> DOB & Gender -> Auto Next -> Focus Phone -> Typing phone auto-clicks Next & Password & Sign Up!
+    fun buildOneTapSmartAutoSignupScript(profile: GeneratedProfile): String {
+        return """
+            (async function() {
+                try {
+                    function sleep(minMs, maxMs) {
+                        return new Promise(r => setTimeout(r, Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs));
+                    }
+
+                    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value') ?
+                        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set : null;
+
+                    function setVal(el, val) {
+                        if (!el) return;
+                        if (nativeSetter) { nativeSetter.call(el, val); } else { el.value = val; }
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.style.border = '2px solid #10B981';
+                        el.style.backgroundColor = '#ECFDF5';
+                    }
+
+                    function triggerEnterOnField(el) {
+                        if (!el) return;
+                        try {
+                            el.focus();
+                            var enterEvt = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+                            el.dispatchEvent(enterEvt);
+                            var enterUpEvt = new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+                            el.dispatchEvent(enterUpEvt);
+
+                            var form = el.form || el.closest('form');
+                            if (form) {
+                                if (typeof form.requestSubmit === 'function') {
+                                    form.requestSubmit();
+                                } else if (typeof form.submit === 'function') {
+                                    form.submit();
+                                }
+                            }
+                        } catch(e) {}
+                    }
+
+                    function clickElement(el) {
+                        if (!el) return false;
+                        try {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            if (typeof el.focus === 'function') el.focus();
+                            el.click();
+                            
+                            var evtOptions = { bubbles: true, cancelable: true, view: window };
+                            el.dispatchEvent(new MouseEvent('mousedown', evtOptions));
+                            el.dispatchEvent(new MouseEvent('mouseup', evtOptions));
+                            el.dispatchEvent(new MouseEvent('click', evtOptions));
+                            el.dispatchEvent(new PointerEvent('pointerdown', evtOptions));
+                            el.dispatchEvent(new PointerEvent('pointerup', evtOptions));
+
+                            var parentForm = el.form || (el.closest ? el.closest('form') : null);
+                            if (parentForm) {
+                                if (typeof parentForm.requestSubmit === 'function') {
+                                    try { parentForm.requestSubmit(); } catch(err) {}
+                                }
+                            }
+                            return true;
+                        } catch(e) {
+                            return false;
+                        }
+                    }
+
+                    function findNextButton() {
+                        // 1. Direct query by standard Facebook attributes
+                        var directBtn = document.querySelector(
+                            "button[name='websubmit'], button[type='submit'], input[type='submit'], " +
+                            "button[id*='next' i], button[id*='submit' i], button[id*='signup' i], " +
+                            "div[data-sigil*='next'], div[data-sigil*='signup'], div[data-sigil*='submit'], " +
+                            "button[data-sigil*='next'], button[data-sigil*='signup']"
+                        );
+                        if (directBtn) return directBtn;
+
+                        // 2. Query all clickable candidate elements
+                        var candidates = document.querySelectorAll("button, input[type='submit'], input[type='button'], div[role='button'], a[role='button'], span[role='button'], div[class*='button' i], button[class*='btn' i]");
+                        for (var i = 0; i < candidates.length; i++) {
+                            var txt = (candidates[i].innerText || candidates[i].value || candidates[i].getAttribute('aria-label') || '').toLowerCase().trim();
+                            if (
+                                txt.includes('next') || txt.includes('continue') || 
+                                txt.includes('পরবর্তী') || txt.includes('এগিয়ে') || txt.includes('এগিয়ে') ||
+                                txt.includes('মেইল') || txt.includes('ফোন') || txt.includes('sign up') || txt.includes('submit')
+                            ) {
+                                return candidates[i];
+                            }
+                        }
+
+                        // 3. Fallback to any primary button in form
+                        return document.querySelector("form button, form input[type='submit']");
+                    }
+
+                    function findSubmitButton() {
+                        var submitBtn = document.querySelector("button[name='websubmit'], button[type='submit'], input[type='submit'], button[id*='signup' i]");
+                        if (submitBtn) return submitBtn;
+
+                        var candidates = document.querySelectorAll("button, input[type='submit'], div[role='button'], a[role='button']");
+                        for (var i = 0; i < candidates.length; i++) {
+                            var txt = (candidates[i].innerText || candidates[i].value || candidates[i].getAttribute('aria-label') || '').toLowerCase().trim();
+                            if (txt.includes('sign up') || txt.includes('submit') || txt.includes('register') || txt.includes('সাইন আপ') || txt.includes('তৈরি করুন')) {
+                                return candidates[i];
+                            }
+                        }
+                        return findNextButton();
+                    }
+
+                    var nameStepDone = false;
+                    var dobStepDone = false;
+
+                    async function processCurrentStep() {
+                        // STEP 1: First Name & Last Name (Surname)
+                        var fnEl = document.querySelector("input[name='firstname'], input[name*='first' i], input[placeholder*='First' i]");
+                        var lnEl = document.querySelector("input[name='lastname'], input[name*='last' i], input[placeholder*='Surname' i], input[placeholder*='Last' i]");
+                        var dayEl = document.querySelector("select[name='birthday_day'], #day");
+                        var epEl = document.querySelector("input[name='reg_email__'], input[type='tel'], input[type='email'], input[name*='email' i], input[name*='phone' i], input[name*='contact' i]");
+
+                        if (fnEl && !nameStepDone) {
+                            setVal(fnEl, '${profile.firstName}');
+                            if (lnEl) setVal(lnEl, '${profile.lastName}');
+                            nameStepDone = true;
+
+                            // If DOB select is NOT on this screen, it's step 1 of multi-step -> auto click Next
+                            if (!dayEl) {
+                                await sleep(350, 600);
+                                var nxtBtn = findNextButton();
+                                if (nxtBtn) { clickElement(nxtBtn); return; }
+                            }
+                        }
+
+                        // STEP 2: Date of Birth & Gender
+                        var monthEl = document.querySelector("select[name='birthday_month'], #month");
+                        var yearEl = document.querySelector("select[name='birthday_year'], #year");
+
+                        if (dayEl && !dobStepDone) {
+                            if (dayEl) { dayEl.value = '${profile.birthDay}'; dayEl.dispatchEvent(new Event('change', { bubbles: true })); dayEl.style.border = '2px solid #10B981'; }
+                            if (monthEl) { monthEl.value = '${profile.birthMonth}'; monthEl.dispatchEvent(new Event('change', { bubbles: true })); monthEl.style.border = '2px solid #10B981'; }
+                            if (yearEl) { yearEl.value = '${profile.birthYear}'; yearEl.dispatchEvent(new Event('change', { bubbles: true })); yearEl.style.border = '2px solid #10B981'; }
+
+                            var radios = document.querySelectorAll("input[type='radio'][name='sex'], input[type='radio'][name='gender']");
+                            if (radios.length > 0) {
+                                var isFemale = '${profile.gender.lowercase()}' === 'female';
+                                var targetRadio = isFemale ? radios[0] : (radios.length > 1 ? radios[1] : radios[0]);
+                                targetRadio.checked = true;
+                                targetRadio.click();
+                                targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+
+                            dobStepDone = true;
+
+                            // If Phone input is NOT on this screen, it's step 2 of multi-step -> auto click Next
+                            if (!epEl) {
+                                await sleep(350, 600);
+                                var nxtBtn2 = findNextButton();
+                                if (nxtBtn2) { clickElement(nxtBtn2); return; }
+                            }
+                        }
+
+                        // STEP 3: Password field if present
+                        var pwEl = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
+                        if (pwEl && !pwEl.value) {
+                            setVal(pwEl, '${profile.password}');
+                        }
+
+                        // STEP 4: Focus Phone / Email input & attach auto-submit on typing phone
+                        var epEl = document.querySelector("input[name='reg_email__'], input[type='tel'], input[type='email'], input[name*='email' i], input[name*='phone' i], input[name*='contact' i]");
+                        if (!epEl) {
+                            var inputs = document.querySelectorAll("input:not([type='hidden'])");
+                            for (var i = 0; i < inputs.length; i++) {
+                                if (!inputs[i].value && inputs[i].type !== 'password') { epEl = inputs[i]; break; }
+                            }
+                        }
+
+                        if (epEl) {
+                            epEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            epEl.focus();
+                            epEl.style.border = '3px solid #2563EB';
+                            epEl.style.backgroundColor = '#EFF6FF';
+
+                            if (!epEl.__autoNextAttached) {
+                                epEl.__autoNextAttached = true;
+
+                                function triggerNextAndPassword() {
+                                    if (window.__phoneSubmitTriggered) return;
+                                    window.__phoneSubmitTriggered = true;
+
+                                    setTimeout(async function() {
+                                        var passField = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
+                                        if (passField) {
+                                            setVal(passField, '${profile.password}');
+                                        }
+
+                                        await sleep(250, 450);
+                                        var submitBtn = findSubmitButton();
+                                        if (submitBtn) {
+                                            clickElement(submitBtn);
+                                        }
+
+                                        await sleep(1000, 1600);
+                                        var passField2 = document.querySelector("input[type='password'], input[name*='pass' i]");
+                                        if (passField2 && !passField2.value) {
+                                            setVal(passField2, '${profile.password}');
+                                            await sleep(250, 450);
+                                            var submitBtn2 = findSubmitButton();
+                                            if (submitBtn2) clickElement(submitBtn2);
+                                        }
+                                    }, 200);
+                                }
+
+                                epEl.addEventListener('input', function(e) {
+                                    var digits = e.target.value.replace(/[^0-9]/g, '');
+                                    if (digits.length >= 10 || e.target.value.includes('@')) {
+                                        triggerNextAndPassword();
+                                    }
+                                });
+
+                                epEl.addEventListener('blur', function(e) {
+                                    if (e.target.value.trim().length >= 6) {
+                                        triggerNextAndPassword();
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    // Run step processor
+                    await processCurrentStep();
+
+                    // Step monitoring loop for page transitions
+                    if (!window.__autoStepInterval) {
+                        var stepCount = 0;
+                        window.__autoStepInterval = setInterval(async function() {
+                            stepCount++;
+                            if (stepCount > 40) {
+                                clearInterval(window.__autoStepInterval);
+                                window.__autoStepInterval = null;
+                                return;
+                            }
+                            await processCurrentStep();
+                        }, 500);
+                    }
+
+                    return 'ZERO_CLICK_STEP_AUTOFILL_SUCCESS';
+                } catch(e) {
+                    return 'ERROR: ' + e.message;
+                }
+            })();
+        """.trimIndent()
+    }
 }
 
 
