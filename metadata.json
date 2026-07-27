@@ -1,0 +1,6 @@
+{
+  "name": "Web Browser",
+  "description": "A fast, modern Android web browser with tab management, ad blocking, bookmarks, browsing history, desktop mode, and custom search engines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
