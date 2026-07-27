@@ -3,6 +3,7 @@ package com.example.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.automation.FieldSelectors
 import com.example.automation.GeneratedProfile
 import com.example.automation.ProfileGenerator
 import com.example.data.db.AppDatabase
@@ -17,7 +18,25 @@ import kotlinx.coroutines.launch
 class AutoFillViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: AccountRepository
-    val currentProfile: MutableStateFlow<GeneratedProfile> = MutableStateFlow(ProfileGenerator.generate())
+    val currentProfile: MutableStateFlow<GeneratedProfile> = MutableStateFlow(ProfileGenerator.generateRandomProfile())
+    val customSelectors: MutableStateFlow<FieldSelectors> = MutableStateFlow(FieldSelectors())
+    val autoSubmitEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val filledCount: MutableStateFlow<Int> = MutableStateFlow(0)
+    val isLiveSequentialActive: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val liveStatusText: MutableStateFlow<String> = MutableStateFlow("Ready for Live AutoFill")
+
+    fun incrementFilledCount() {
+        filledCount.value = filledCount.value + 1
+    }
+
+    fun setLiveSequentialActive(active: Boolean) {
+        isLiveSequentialActive.value = active
+        if (active) {
+            liveStatusText.value = "Live AutoFill Sequence Running..."
+        } else {
+            liveStatusText.value = "Live AutoFill Sequence Paused (${filledCount.value} completed)"
+        }
+    }
 
     val accounts: StateFlow<List<AccountEntity>>
 
@@ -29,6 +48,30 @@ class AutoFillViewModel(application: Application) : AndroidViewModel(application
             SharingStarted.WhileSubscribed(5000),
             emptyList()
         )
+    }
+
+    fun updateCustomSelectors(
+        fnSel: String? = null,
+        lnSel: String? = null,
+        epSel: String? = null,
+        pwSel: String? = null
+    ) {
+        val current = customSelectors.value
+        val newFn = if (!fnSel.isNullOrBlank()) listOf(fnSel.trim()) + current.firstNameSelectors else current.firstNameSelectors
+        val newLn = if (!lnSel.isNullOrBlank()) listOf(lnSel.trim()) + current.lastNameSelectors else current.lastNameSelectors
+        val newEp = if (!epSel.isNullOrBlank()) listOf(epSel.trim()) + current.emailPhoneSelectors else current.emailPhoneSelectors
+        val newPw = if (!pwSel.isNullOrBlank()) listOf(pwSel.trim()) + current.passwordSelectors else current.passwordSelectors
+
+        customSelectors.value = current.copy(
+            firstNameSelectors = newFn.distinct(),
+            lastNameSelectors = newLn.distinct(),
+            emailPhoneSelectors = newEp.distinct(),
+            passwordSelectors = newPw.distinct()
+        )
+    }
+
+    fun toggleAutoSubmit(enabled: Boolean) {
+        autoSubmitEnabled.value = enabled
     }
 
     // Generate new profile

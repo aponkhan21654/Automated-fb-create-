@@ -20,22 +20,38 @@ object ProfileGenerator {
 
     private val bangladeshiMaleFirstNames = listOf(
         "Tanvir", "Sabbir", "Rahim", "Shakib", "Naim", "Abrar", "Fahim", "Mahmud", "Imran",
-        "Nayeem", "Tamim", "Jubayer", "Rakib", "Arif", "Hasan", "Mehedi", "Rayhan"
+        "Nayeem", "Tamim", "Jubayer", "Rakib", "Arif", "Hasan", "Mehedi", "Rayhan", "Siam", "Tawhid"
     )
 
     private val bangladeshiFemaleFirstNames = listOf(
         "Ayesha", "Nusrat", "Sadia", "Fatema", "Mithila", "Tazrin", "Mim", "Sharmin",
-        "Rumana", "Sabrina", "Farhana", "Jannat", "Priya", "Noshin", "Lamia", "Afrin"
+        "Rumana", "Sabrina", "Farhana", "Jannat", "Priya", "Noshin", "Lamia", "Afrin", "Sumaiya"
     )
 
     private val bangladeshiLastNames = listOf(
-        "Hasan", "Ahmed", "Hossain", "Chowdhury", "Rahman", "Islam", "Khan", "Siddique"
+        "Hasan", "Ahmed", "Hossain", "Chowdhury", "Rahman", "Islam", "Khan", "Siddique", "Ali", "Alam"
     )
 
-    private val emailDomains = listOf("gmail.com", "outlook.com", "yahoo.com", "hotmail.com")
+    private val globalMaleFirstNames = listOf(
+        "Alex", "David", "Michael", "Ethan", "James", "Daniel", "Matthew", "Oliver", "Lucas", "Noah"
+    )
+
+    private val globalFemaleFirstNames = listOf(
+        "Emma", "Sophia", "Olivia", "Ava", "Isabella", "Mia", "Emily", "Chloe", "Grace", "Lily"
+    )
+
+    private val globalLastNames = listOf(
+        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Wilson"
+    )
+
+    private val emailDomains = listOf(
+        "gmail.com", "outlook.com", "yahoo.com", "hotmail.com", "icloud.com", "proton.me", "tempmail.org"
+    )
 
     enum class PresetType { BANGLADESHI, GLOBAL, MIXED }
     enum class PasswordMode { RANDOM_STRONG, CUSTOM_FIXED, PREFIX_RANDOM }
+
+    fun generateRandomProfile(): GeneratedProfile = generate()
 
     fun generate(
         preset: PresetType = PresetType.BANGLADESHI,
@@ -48,8 +64,21 @@ object ProfileGenerator {
         val isMale = forcedGender?.lowercase()?.contains("male") ?: Random.nextBoolean()
         val genderStr = if (isMale) "Male" else "Female"
 
-        val firstName = if (isMale) bangladeshiMaleFirstNames.random() else bangladeshiFemaleFirstNames.random()
-        val lastName = bangladeshiLastNames.random()
+        val firstName = when (preset) {
+            PresetType.BANGLADESHI -> if (isMale) bangladeshiMaleFirstNames.random() else bangladeshiFemaleFirstNames.random()
+            PresetType.GLOBAL -> if (isMale) globalMaleFirstNames.random() else globalFemaleFirstNames.random()
+            PresetType.MIXED -> if (Random.nextBoolean()) {
+                if (isMale) bangladeshiMaleFirstNames.random() else bangladeshiFemaleFirstNames.random()
+            } else {
+                if (isMale) globalMaleFirstNames.random() else globalFemaleFirstNames.random()
+            }
+        }
+
+        val lastName = when (preset) {
+            PresetType.BANGLADESHI -> bangladeshiLastNames.random()
+            PresetType.GLOBAL -> globalLastNames.random()
+            PresetType.MIXED -> if (Random.nextBoolean()) bangladeshiLastNames.random() else globalLastNames.random()
+        }
 
         val randomYear = Random.nextInt(1992, 2004)
         val randomMonth = Random.nextInt(1, 13)

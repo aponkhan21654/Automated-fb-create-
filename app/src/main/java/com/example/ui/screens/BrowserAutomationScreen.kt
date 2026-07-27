@@ -54,12 +54,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,6 +99,48 @@ fun BrowserAutomationScreen(
     var isLoading by remember { mutableStateOf(false) }
     var progress by remember { mutableIntStateOf(0) }
     var isExpanded by remember { mutableStateOf(true) }
+
+    val customSelectors by viewModel.customSelectors.collectAsState()
+    val autoSubmitEnabled by viewModel.autoSubmitEnabled.collectAsState()
+    val filledCount by viewModel.filledCount.collectAsState()
+    val isLiveSequentialActive by viewModel.isLiveSequentialActive.collectAsState()
+    val liveStatusText by viewModel.liveStatusText.collectAsState()
+
+    LaunchedEffect(isLiveSequentialActive) {
+        if (isLiveSequentialActive) {
+            while (isActive && viewModel.isLiveSequentialActive.value) {
+                // Step 1: Generate fresh new profile
+                viewModel.generateNewProfile()
+                delay(300)
+
+                val prof = viewModel.currentProfile.value
+                val script = AutoFillScriptEngine.buildInjectScript(
+                    profile = prof,
+                    selectors = viewModel.customSelectors.value,
+                    autoSubmit = viewModel.autoSubmitEnabled.value
+                )
+
+                withContext(Dispatchers.Main) {
+                    activeWebView?.evaluateJavascript(script) { null }
+                    Toast.makeText(context, "Live Sequential AutoFill #${filledCount + 1}: ${prof.firstName} ${prof.lastName}", Toast.LENGTH_SHORT).show()
+                }
+
+                viewModel.saveCurrentProfileToDb(status = "Live Sequential AutoFilled")
+                viewModel.incrementFilledCount()
+
+                // Step 2: Delay for live typing and user review
+                delay(6000)
+
+                // Step 3: Clear and reload for next account if continuous loop is still active
+                if (viewModel.isLiveSequentialActive.value) {
+                    withContext(Dispatchers.Main) {
+                        clearBrowserData(context, activeWebView, currentUrl)
+                    }
+                    delay(2500)
+                }
+            }
+        }
+    }
 
     val mirrorOptions = remember {
         listOf(
@@ -402,63 +453,100 @@ fun BrowserAutomationScreen(
                         Column {
                             Spacer(modifier = Modifier.height(4.dp))
 
-                            Text(
-                                text = "DOB: ${profile.dobFormatted}  •  Pass: ${profile.password}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "DOB: ${profile.dobFormatted}  •  Pass: ${profile.password}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                    Text(
+                                        text = "ID: ${profile.emailOrPhone}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    )
+                                }
 
-                            Text(
-                                text = "ID: ${profile.emailOrPhone}",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            )
+                                Surface(
+                                    color = if (isLiveSequentialActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = if (isLiveSequentialActive) "🔄 Loop Active (#$filledCount)" else "Filled: #$filledCount",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 10.sp),
+                                        color = if (isLiveSequentialActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
+                            // Main Sequential AutoFill Action Buttons
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                // 1. Next & AutoFill (Sequential Step-by-Step)
                                 Button(
                                     onClick = {
-                                        val script = AutoFillScriptEngine.buildInjectScript(profile)
-                                        activeWebView?.evaluateJavascript(script) { result ->
-                                            Toast.makeText(context, "Form fields injected!", Toast.LENGTH_SHORT).show()
+                                        viewModel.generateNewProfile()
+                                        val newProf = viewModel.currentProfile.value
+                                        val script = AutoFillScriptEngine.buildInjectScript(
+                                            profile = newProf,
+                                            selectors = customSelectors,
+                                            autoSubmit = autoSubmitEnabled
+                                        )
+                                        activeWebView?.evaluateJavascript(script) {
+                                            Toast.makeText(context, "Sequential Live AutoFill #${filledCount + 1} completed!", Toast.LENGTH_SHORT).show()
                                         }
+                                        viewModel.saveCurrentProfileToDb(status = "Sequential AutoFilled")
+                                        viewModel.incrementFilledCount()
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.2f)
+                                    modifier = Modifier.weight(1.3f)
                                 ) {
-                                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Auto-Fill", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text("Next & Fill", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
 
+                                // 2. Continuous Loop Toggle
+                                Button(
+                                    onClick = {
+                                        viewModel.setLiveSequentialActive(!isLiveSequentialActive)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isLiveSequentialActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1.1f)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isLiveSequentialActive) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(if (isLiveSequentialActive) "Stop" else "Auto Loop", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                // 3. Clear Data Button
                                 OutlinedButton(
                                     onClick = {
                                         clearBrowserData(context, activeWebView, currentUrl)
                                     },
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1.1f)
+                                    modifier = Modifier.weight(1.0f)
                                 ) {
                                     Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Clear Data", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
-                                }
-
-                                OutlinedButton(
-                                    onClick = {
-                                        viewModel.saveCurrentProfileToDb()
-                                        Toast.makeText(context, "Account saved to log!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(0.9f)
-                                ) {
-                                    Icon(imageVector = Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Save", fontSize = 12.sp)
+                                    Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
