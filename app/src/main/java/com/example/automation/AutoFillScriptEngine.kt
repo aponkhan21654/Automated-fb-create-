@@ -268,8 +268,9 @@ object AutoFillScriptEngine {
         """.trimIndent()
     }
 
-    // List of Token Registration Links (web.facebook.com & m.facebook.com)
+    // List of Token Registration Links (web.facebook.com, limited.facebook.com & m.facebook.com)
     val TOKEN_MREG_URLS = listOf(
+        "https://limited.facebook.com/reg/?logger_id&is_two_steps_login=0&cid=103&next=https%3A%2F%2Fm.facebook.com%2Fconfirmemail.php%3Fnext%3Dhttps%253A%252F%252Fdevelopers.facebook.com%252Fdocumentation%252Ffacebook-login%252Fios%252Flimited-login%26http_ref%3DeyJ0cyI6IjE3ODQ4ODUxNjQ0NjMiLCJyIjoiaHR0cHM6XC9cL3d3dy5nb29nbGUuY29tXC8ifQ%253D%253D%26cah%3D2%26rwtsid%3DVMsmUcMfLX80RBelV&refsrc=deprecated&soft=hjk",
         "https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901",
         "https://web.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24",
         "https://web.facebook.com/mreg?e_token=AbnQFQG4x_sBJ1BS1HgYin1ijehpcfvN7TMPWiX9EUc3ccMDKbce7V9FPzk7AbMoPsA7K5nonavUvw&d_hash=FBA71FDC8239E901",

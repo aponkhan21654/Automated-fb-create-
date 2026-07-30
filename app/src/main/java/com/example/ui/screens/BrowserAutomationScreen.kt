@@ -101,7 +101,9 @@ fun BrowserAutomationScreen(
     val context = LocalContext.current
     val savedPassword by viewModel.savedUserPassword.collectAsState()
 
-    var currentUrl by remember { mutableStateOf("https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901") }
+    val DEFAULT_URL = "https://limited.facebook.com/reg/?logger_id&is_two_steps_login=0&cid=103&next=https%3A%2F%2Fm.facebook.com%2Fconfirmemail.php%3Fnext%3Dhttps%253A%252F%252Fdevelopers.facebook.com%252Fdocumentation%252Ffacebook-login%252Fios%252Flimited-login%26http_ref%3DeyJ0cyI6IjE3ODQ4ODUxNjQ0NjMiLCJyIjoiaHR0cHM6XC9cL3d3dy5nb29nbGUuY29tXC8ifQ%253D%253D%26cah%3D2%26rwtsid%3DVMsmUcMfLX80RBelV&refsrc=deprecated&soft=hjk"
+
+    var currentUrl by remember { mutableStateOf(DEFAULT_URL) }
     var inputUrl by remember(currentUrl) { mutableStateOf(currentUrl) }
     var activeWebView by remember { mutableStateOf<WebView?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -175,7 +177,8 @@ fun BrowserAutomationScreen(
 
     val mirrorOptions = remember {
         listOf(
-            MirrorOption("⚡ web.facebook Token", "https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901", isFast = true),
+            MirrorOption("⚡ limited.facebook", DEFAULT_URL, isFast = true),
+            MirrorOption("web.facebook Token", "https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901"),
             MirrorOption("m.facebook", "https://m.facebook.com/reg"),
             MirrorOption("mbasic.facebook", "https://mbasic.facebook.com/reg"),
             MirrorOption("facebook.com", "https://www.facebook.com/r.php")
