@@ -302,6 +302,8 @@ object AutoFillScriptEngine {
                         if (nativeSetter) { nativeSetter.call(el, val); } else { el.value = val; }
                         el.dispatchEvent(new Event('input', { bubbles: true }));
                         el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.dispatchEvent(new Event('blur', { bubbles: true }));
+                        el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
                         el.style.border = '2px solid #10B981';
                         el.style.backgroundColor = '#ECFDF5';
                     }
@@ -329,7 +331,7 @@ object AutoFillScriptEngine {
                     function clickElement(el) {
                         if (!el) return false;
                         try {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             if (typeof el.focus === 'function') el.focus();
                             el.click();
                             
@@ -344,6 +346,8 @@ object AutoFillScriptEngine {
                             if (parentForm) {
                                 if (typeof parentForm.requestSubmit === 'function') {
                                     try { parentForm.requestSubmit(); } catch(err) {}
+                                } else if (typeof parentForm.submit === 'function') {
+                                    try { parentForm.submit(); } catch(err) {}
                                 }
                             }
                             return true;
@@ -355,7 +359,7 @@ object AutoFillScriptEngine {
                     function findNextButton() {
                         // 1. Direct query by standard Facebook attributes
                         var directBtn = document.querySelector(
-                            "button[name='websubmit'], button[type='submit'], input[type='submit'], " +
+                            "button[name='websubmit'], button[name='submit'], button[type='submit'], input[type='submit'], " +
                             "button[id*='next' i], button[id*='submit' i], button[id*='signup' i], " +
                             "div[data-sigil*='next'], div[data-sigil*='signup'], div[data-sigil*='submit'], " +
                             "button[data-sigil*='next'], button[data-sigil*='signup']"
@@ -369,7 +373,7 @@ object AutoFillScriptEngine {
                             if (
                                 txt.includes('next') || txt.includes('continue') || 
                                 txt.includes('পরবর্তী') || txt.includes('এগিয়ে') || txt.includes('এগিয়ে') ||
-                                txt.includes('মেইল') || txt.includes('ফোন') || txt.includes('sign up') || txt.includes('submit')
+                                txt.includes('মেইল') || txt.includes('ফোন') || txt.includes('sign up') || txt.includes('signup') || txt.includes('submit')
                             ) {
                                 return candidates[i];
                             }
@@ -380,13 +384,17 @@ object AutoFillScriptEngine {
                     }
 
                     function findSubmitButton() {
-                        var submitBtn = document.querySelector("button[name='websubmit'], button[type='submit'], input[type='submit'], button[id*='signup' i]");
+                        var submitBtn = document.querySelector(
+                            "button[name='websubmit'], button[name='submit'], button[type='submit'], input[type='submit'], " +
+                            "button[id*='signup' i], button[id*='submit' i], button[data-sigil*='signup'], div[data-sigil*='signup'], " +
+                            "button[class*='signup' i], button[class*='submit' i]"
+                        );
                         if (submitBtn) return submitBtn;
 
-                        var candidates = document.querySelectorAll("button, input[type='submit'], div[role='button'], a[role='button']");
+                        var candidates = document.querySelectorAll("button, input[type='submit'], input[type='button'], div[role='button'], a[role='button'], span[role='button']");
                         for (var i = 0; i < candidates.length; i++) {
                             var txt = (candidates[i].innerText || candidates[i].value || candidates[i].getAttribute('aria-label') || '').toLowerCase().trim();
-                            if (txt.includes('sign up') || txt.includes('submit') || txt.includes('register') || txt.includes('সাইন আপ') || txt.includes('তৈরি করুন')) {
+                            if (txt.includes('sign up') || txt.includes('signup') || txt.includes('sign-up') || txt.includes('submit') || txt.includes('register') || txt.includes('সাইন আপ') || txt.includes('তৈরি করুন')) {
                                 return candidates[i];
                             }
                         }
@@ -472,10 +480,15 @@ object AutoFillScriptEngine {
                             if (nxt3) { clickElement(nxt3); return; }
                         }
 
-                        // STEP 3: Password from setting -> auto-fill password field
-                        var pwEl = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
-                        if (pwEl && !pwEl.value) {
-                            setVal(pwEl, '${profile.password}');
+                        // STEP 3: Password from setting -> auto-fill password field & auto click Sign Up
+                        var pwEl = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i], input[id*='pass' i]");
+                        if (pwEl) {
+                            if (!pwEl.value) {
+                                setVal(pwEl, '${profile.password}');
+                            }
+                            await sleep(200, 400);
+                            var sBtn = findSubmitButton();
+                            if (sBtn) { clickElement(sBtn); }
                         }
 
                         // STEP 4: Phone number field focus & auto-fill password + Sign Up when phone entered/Next clicked
@@ -492,9 +505,9 @@ object AutoFillScriptEngine {
 
                                 function doSignUpSubmit() {
                                     setTimeout(async function() {
-                                        var passField = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
+                                        var passField = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i], input[id*='pass' i]");
                                         if (passField) setVal(passField, '${profile.password}');
-                                        await sleep(300, 600);
+                                        await sleep(200, 500);
                                         var submitBtn = findSubmitButton();
                                         if (submitBtn) clickElement(submitBtn);
                                     }, 200);
@@ -548,133 +561,245 @@ object AutoFillScriptEngine {
 
         return """
             (function() {
-                if (window.__autoFillTimer) {
-                    clearInterval(window.__autoFillTimer);
-                }
-
-                function setVal(selArray, val) {
-                    var el = null;
-                    if (Array.isArray(selArray)) {
-                        for (var i = 0; i < selArray.length; i++) {
-                            el = document.querySelector(selArray[i]);
-                            if (el) break;
-                        }
-                    } else if (typeof selArray === 'string') {
-                        el = document.querySelector(selArray);
-                    } else {
-                        el = selArray;
+                try {
+                    if (window.__autoFillTimer) {
+                        clearInterval(window.__autoFillTimer);
+                        window.__autoFillTimer = null;
                     }
 
-                    if (el) {
-                        if (el.value !== val) {
-                            el.value = val;
-                            el.dispatchEvent(new Event('input', { bubbles: true }));
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                            el.dispatchEvent(new Event('blur', { bubbles: true }));
-                            el.style.border = '2px solid #10B981';
+                    function isVisible(el) {
+                        if (!el) return false;
+                        try {
+                            return (el.offsetWidth > 0 || el.offsetHeight > 0 || el.offsetParent !== null);
+                        } catch(e) {
+                            return true;
                         }
-                        return true;
                     }
-                    return false;
-                }
 
-                function clickBtn() {
-                    var b = document.querySelector('button[name="submit"]') || 
-                            document.querySelector('button.primary') || 
-                            document.querySelector('button[type="submit"]') || 
-                            document.querySelector('input[type="submit"]') || 
-                            (function() {
-                                var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"], a[role="button"], div[role="button"]');
-                                for (var i = 0; i < btns.length; i++) {
-                                    var text = (btns[i].innerText || btns[i].value || '').toLowerCase();
-                                    if (text.includes('next') || text.includes('sign up') || text.includes('continue') || text.includes('পরবর্তী') || text.includes('সাইন আপ') || text.includes('आगे')) {
-                                        return btns[i];
+                    function setVal(selArray, val) {
+                        var el = null;
+                        if (Array.isArray(selArray)) {
+                            for (var i = 0; i < selArray.length; i++) {
+                                var candidate = document.querySelector(selArray[i]);
+                                if (candidate && isVisible(candidate)) {
+                                    el = candidate;
+                                    break;
+                                }
+                                if (candidate && !el) {
+                                    el = candidate;
+                                }
+                            }
+                        } else if (typeof selArray === 'string') {
+                            el = document.querySelector(selArray);
+                        } else {
+                            el = selArray;
+                        }
+
+                        if (!el) return false;
+
+                        try {
+                            if (el.tagName === 'SELECT') {
+                                var strVal = String(val);
+                                var selected = false;
+                                for (var j = 0; j < el.options.length; j++) {
+                                    if (el.options[j].value === strVal || el.options[j].text.trim() === strVal) {
+                                        el.selectedIndex = j;
+                                        selected = true;
+                                        break;
                                     }
                                 }
-                                return null;
-                            })();
-                    if (b) {
-                        b.click();
-                        return true;
-                    }
-                    return false;
-                }
-
-                var stepHandled = { name: false, dob: false, gender: false, password: false, phoneListener: false };
-                var attempts = 0;
-
-                window.__autoFillTimer = setInterval(function() {
-                    attempts++;
-                    if (attempts > 60) {
-                        clearInterval(window.__autoFillTimer);
-                        return;
-                    }
-
-                    // 1. First Name & Last Name Step
-                    var fnEl = document.querySelector('input[name="firstname"], input[name*="first" i], input[autocomplete="given-name"]');
-                    if (fnEl && !stepHandled.name) {
-                        setVal(['input[name="firstname"]', 'input[name*="first" i]', 'input[autocomplete="given-name"]'], '$safeFirstName');
-                        setVal(['input[name="lastname"]', 'input[name*="last" i]', 'input[autocomplete="family-name"]'], '$safeLastName');
-                        stepHandled.name = true;
-                        setTimeout(clickBtn, 350);
-                        return;
-                    }
-
-                    // 2. Mobile Phone Number / Email Step Detection
-                    var phoneEl = document.querySelector('input[name="reg_email__"], input[type="tel"], input[name*="phone" i], input[name*="contact" i]');
-                    if (phoneEl && !stepHandled.phoneListener) {
-                        stepHandled.phoneListener = true;
-                        phoneEl.addEventListener('input', function() {
-                            if (this.value && this.value.length >= 10) {
-                                setTimeout(function() {
-                                    clickBtn();
-                                }, 800);
+                                if (!selected) { el.value = strVal; }
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                            } else {
+                                var proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                                var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+                                var setter = desc ? desc.set : null;
+                                if (setter) {
+                                    setter.call(el, val);
+                                } else {
+                                    el.value = val;
+                                }
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                el.dispatchEvent(new Event('blur', { bubbles: true }));
+                                try {
+                                    el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
+                                } catch(e) {}
                             }
-                        });
-                        phoneEl.addEventListener('change', function() {
-                            if (this.value && this.value.length >= 8) {
-                                setTimeout(function() {
-                                    clickBtn();
-                                }, 500);
-                            }
-                        });
-                    }
-
-                    // 3. Date of Birth Step (Day, Month, Year)
-                    var dayEl = document.querySelector('select[name="birthday_day"], select[id="day"], #day, select[name*="day" i]');
-                    if (dayEl && !stepHandled.dob) {
-                        setVal(['select[name="birthday_day"]', 'select[id="day"]', '#day', 'select[name*="day" i]'], '${profile.birthDay}');
-                        setVal(['select[name="birthday_month"]', 'select[id="month"]', '#month', 'select[name*="month" i]'], '${profile.birthMonth}');
-                        setVal(['select[name="birthday_year"]', 'select[id="year"]', '#year', 'select[name*="year" i]'], '${profile.birthYear}');
-                        stepHandled.dob = true;
-                        setTimeout(clickBtn, 350);
-                        return;
-                    }
-
-                    // 4. Gender Step
-                    var radios = document.querySelectorAll("input[type='radio'][name='sex'], input[type='radio'][name='gender']");
-                    if (radios.length > 0 && !stepHandled.gender) {
-                        var isFemale = '${profile.gender.lowercase()}' === 'female';
-                        var targetRadio = isFemale ? radios[0] : (radios.length > 1 ? radios[1] : radios[0]);
-                        if (targetRadio) {
-                            targetRadio.checked = true;
-                            targetRadio.click();
-                            targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                            el.style.border = '2px solid #10B981';
+                            el.style.backgroundColor = '#ECFDF5';
+                            return true;
+                        } catch(e) {
+                            try { el.value = val; } catch(err) {}
+                            return false;
                         }
-                        stepHandled.gender = true;
-                        setTimeout(clickBtn, 350);
-                        return;
                     }
 
-                    // 5. Password Step
-                    var passEl = document.querySelector('input[name="reg_passwd__"], input[type="password"], input[name*="pass" i]');
-                    if (passEl && !stepHandled.password) {
-                        setVal(['input[name="reg_passwd__"]', 'input[type="password"]', 'input[name*="pass" i]'], '$safePassword');
-                        stepHandled.password = true;
-                        setTimeout(clickBtn, 350);
-                        return;
+                    function findSubmitOrSignUpButton() {
+                        var b = document.querySelector('button[name="websubmit"]') ||
+                                document.querySelector('button[name="submit"]') ||
+                                document.querySelector('button[id*="signup" i]') ||
+                                document.querySelector('button[id*="submit" i]') ||
+                                document.querySelector('button[data-sigil*="signup"]') ||
+                                document.querySelector('button[data-sigil*="submit"]') ||
+                                document.querySelector('div[data-sigil*="signup"]') ||
+                                document.querySelector('div[data-sigil*="submit"]') ||
+                                document.querySelector('button[type="submit"]') ||
+                                document.querySelector('input[type="submit"]') ||
+                                document.querySelector('button.primary') ||
+                                document.querySelector('button[class*="signup" i]') ||
+                                document.querySelector('button[class*="submit" i]');
+                        if (b && isVisible(b)) return b;
+
+                        var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"], a[role="button"], div[role="button"], span[role="button"], div[class*="button" i]');
+                        for (var i = 0; i < btns.length; i++) {
+                            if (!isVisible(btns[i])) continue;
+                            var text = (btns[i].innerText || btns[i].value || btns[i].getAttribute('aria-label') || '').toLowerCase().trim();
+                            if (
+                                text.includes('sign up') || text.includes('signup') || text.includes('sign-up') ||
+                                text.includes('submit') || text.includes('register') || text.includes('create account') ||
+                                text.includes('সাইন আপ') || text.includes('তৈরি করুন') || text.includes('অ্যাকাউন্ট তৈরি') ||
+                                text.includes('next') || text.includes('continue') || text.includes('পরবর্তী') || text.includes('এগিয়ে') || text.includes('এগিয়ে') || text.includes('आगे')
+                            ) {
+                                return btns[i];
+                            }
+                        }
+                        return b || null;
                     }
-                }, 400);
+
+                    function clickBtn() {
+                        var b = findSubmitOrSignUpButton();
+                        if (b) {
+                            try {
+                                if (typeof b.scrollIntoView === 'function') {
+                                    try { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {}
+                                }
+                                if (typeof b.focus === 'function') {
+                                    try { b.focus(); } catch(e) {}
+                                }
+                                
+                                b.click();
+
+                                var evtOptions = { bubbles: true, cancelable: true, view: window };
+                                try {
+                                    b.dispatchEvent(new MouseEvent('mousedown', evtOptions));
+                                    b.dispatchEvent(new MouseEvent('mouseup', evtOptions));
+                                    b.dispatchEvent(new MouseEvent('click', evtOptions));
+                                } catch(e) {}
+                                return true;
+                            } catch(e) {
+                                return false;
+                            }
+                        }
+                        return false;
+                    }
+
+                    var stepHandled = { name: false, dob: false, gender: false, password: false, phoneListener: false };
+                    var attempts = 0;
+
+                    window.__autoFillTimer = setInterval(function() {
+                        try {
+                            attempts++;
+                            if (attempts > 80) {
+                                clearInterval(window.__autoFillTimer);
+                                window.__autoFillTimer = null;
+                                return;
+                            }
+
+                            var fnEl = document.querySelector('input[name="firstname"], input[name*="first" i], input[autocomplete="given-name"]');
+                            var phoneEl = document.querySelector('input[name="reg_email__"], input[type="tel"], input[name*="email" i], input[name*="phone" i], input[name*="contact" i]');
+                            var passEl = document.querySelector('input[name="reg_passwd__"], input[type="password"], input[name*="pass" i], input[id*="pass" i]');
+                            var dayEl = document.querySelector('select[name="birthday_day"], select[id="day"], #day, select[name*="day" i]');
+
+                            var isSinglePageForm = isVisible(fnEl) && (isVisible(phoneEl) || isVisible(passEl));
+
+                            // 1. First Name & Last Name Step
+                            if (isVisible(fnEl) && !stepHandled.name) {
+                                setVal(['input[name="firstname"]', 'input[name*="first" i]', 'input[autocomplete="given-name"]'], '$safeFirstName');
+                                setVal(['input[name="lastname"]', 'input[name*="last" i]', 'input[autocomplete="family-name"]'], '$safeLastName');
+                                stepHandled.name = true;
+                                if (!isSinglePageForm) {
+                                    setTimeout(clickBtn, 350);
+                                    return;
+                                }
+                            }
+
+                            // 2. Mobile Phone Number / Email Step Listener
+                            if (isVisible(phoneEl) && !stepHandled.phoneListener) {
+                                stepHandled.phoneListener = true;
+                                phoneEl.addEventListener('input', function() {
+                                    if (this.value && (this.value.length >= 10 || this.value.includes('@'))) {
+                                        setTimeout(clickBtn, 400);
+                                    }
+                                });
+                                phoneEl.addEventListener('change', function() {
+                                    if (this.value && (this.value.length >= 8 || this.value.includes('@'))) {
+                                        setTimeout(clickBtn, 300);
+                                    }
+                                });
+                            }
+
+                            // 3. Date of Birth Step (Day, Month, Year)
+                            if (isVisible(dayEl) && !stepHandled.dob) {
+                                setVal(['select[name="birthday_day"]', 'select[id="day"]', '#day', 'select[name*="day" i]'], '${profile.birthDay}');
+                                setVal(['select[name="birthday_month"]', 'select[id="month"]', '#month', 'select[name*="month" i]'], '${profile.birthMonth}');
+                                setVal(['select[name="birthday_year"]', 'select[id="year"]', '#year', 'select[name*="year" i]'], '${profile.birthYear}');
+                                stepHandled.dob = true;
+                                if (!isSinglePageForm) {
+                                    setTimeout(clickBtn, 350);
+                                    return;
+                                }
+                            }
+
+                            // 4. Gender Step
+                            var radios = document.querySelectorAll("input[type='radio'][name='sex'], input[type='radio'][name='gender']");
+                            var visibleRadio = null;
+                            for (var r = 0; r < radios.length; r++) {
+                                if (isVisible(radios[r])) { visibleRadio = radios[r]; break; }
+                            }
+
+                            if (visibleRadio && !stepHandled.gender) {
+                                var isFemale = '${profile.gender.lowercase()}' === 'female';
+                                var targetRadio = isFemale ? radios[0] : (radios.length > 1 ? radios[1] : radios[0]);
+                                if (targetRadio) {
+                                    targetRadio.checked = true;
+                                    targetRadio.click();
+                                    targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                                stepHandled.gender = true;
+                                if (!isSinglePageForm) {
+                                    setTimeout(clickBtn, 350);
+                                    return;
+                                }
+                            }
+
+                            // 5. Password Step & Auto-click Sign-Up / Submit Button
+                            if (isVisible(passEl)) {
+                                if (!stepHandled.password || !passEl.value) {
+                                    setVal(['input[name="reg_passwd__"]', 'input[type="password"]', 'input[name*="pass" i]', 'input[id*="pass" i]'], '$safePassword');
+                                    stepHandled.password = true;
+                                }
+
+                                if (!passEl.__attachedAutoSubmit) {
+                                    passEl.__attachedAutoSubmit = true;
+                                    passEl.addEventListener('input', function() {
+                                        if (this.value && this.value.length >= 4) {
+                                            setTimeout(clickBtn, 300);
+                                        }
+                                    });
+                                }
+
+                                // If phone number/email is filled or user has entered it, auto click submit
+                                if (phoneEl && phoneEl.value && phoneEl.value.length >= 8) {
+                                    setTimeout(clickBtn, 300);
+                                }
+                            }
+                        } catch(e) {
+                            // Suppress error inside interval tick
+                        }
+                    }, 400);
+                } catch(globalErr) {}
             })();
         """.trimIndent()
     }

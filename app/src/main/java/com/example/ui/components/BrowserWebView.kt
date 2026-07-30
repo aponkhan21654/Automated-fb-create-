@@ -80,6 +80,7 @@ fun BrowserWebView(
                         if (url != null) {
                             onPageFinished(url, view?.title)
                         }
+                        CookieManager.getInstance().flush()
                     }
 
                     override fun onReceivedHttpError(
@@ -173,6 +174,7 @@ fun BrowserWebView(
             tab.webView?.apply {
                 stopLoading()
             }
+            CookieManager.getInstance().flush()
         }
     }
 }
