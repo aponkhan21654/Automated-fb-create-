@@ -51,6 +51,7 @@ fun BrowserWebView(
                     builtInZoomControls = true
                     displayZoomControls = false
                     setSupportZoom(true)
+                    setGeolocationEnabled(false)
                     allowFileAccess = true
                     allowContentAccess = true
                     javaScriptCanOpenWindowsAutomatically = true
@@ -139,6 +140,13 @@ fun BrowserWebView(
                     override fun onReceivedIcon(view: WebView?, icon: Bitmap?) {
                         super.onReceivedIcon(view, icon)
                         onReceivedIcon(icon)
+                    }
+
+                    override fun onGeolocationPermissionsShowPrompt(
+                        origin: String?,
+                        callback: android.webkit.GeolocationPermissions.Callback?
+                    ) {
+                        callback?.invoke(origin, false, false)
                     }
                 }
 
