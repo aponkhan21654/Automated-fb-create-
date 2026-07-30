@@ -18,12 +18,26 @@ import kotlinx.coroutines.launch
 class AutoFillViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: AccountRepository
-    val currentProfile: MutableStateFlow<GeneratedProfile> = MutableStateFlow(ProfileGenerator.generateRandomProfile())
+    val savedUserPassword: MutableStateFlow<String> = MutableStateFlow("FbAbrar#888")
+    val currentProfile: MutableStateFlow<GeneratedProfile> = MutableStateFlow(
+        ProfileGenerator.generate(
+            passwordMode = ProfileGenerator.PasswordMode.CUSTOM_FIXED,
+            customPassword = "FbAbrar#888"
+        )
+    )
     val customSelectors: MutableStateFlow<FieldSelectors> = MutableStateFlow(FieldSelectors())
     val autoSubmitEnabled: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val filledCount: MutableStateFlow<Int> = MutableStateFlow(0)
     val isLiveSequentialActive: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val liveStatusText: MutableStateFlow<String> = MutableStateFlow("Ready for Live AutoFill")
+
+    fun updateSavedPassword(newPass: String) {
+        if (newPass.isNotBlank()) {
+            savedUserPassword.value = newPass.trim()
+            // Update current profile password as well
+            currentProfile.value = currentProfile.value.copy(password = newPass.trim())
+        }
+    }
 
     fun incrementFilledCount() {
         filledCount.value = filledCount.value + 1
@@ -79,16 +93,17 @@ class AutoFillViewModel(application: Application) : AndroidViewModel(application
         preset: ProfileGenerator.PresetType = ProfileGenerator.PresetType.BANGLADESHI,
         forcedGender: String? = null,
         useEmail: Boolean = true,
-        passwordMode: ProfileGenerator.PasswordMode = ProfileGenerator.PasswordMode.RANDOM_STRONG,
-        customPassword: String = "Pass#2026",
+        passwordMode: ProfileGenerator.PasswordMode = ProfileGenerator.PasswordMode.CUSTOM_FIXED,
+        customPassword: String? = null,
         customPrefix: String = "FbUser"
     ) {
+        val passToUse = customPassword ?: savedUserPassword.value
         currentProfile.value = ProfileGenerator.generate(
             preset = preset,
             forcedGender = forcedGender,
             useEmail = useEmail,
             passwordMode = passwordMode,
-            customPassword = customPassword,
+            customPassword = passToUse,
             customPrefix = customPrefix
         )
     }

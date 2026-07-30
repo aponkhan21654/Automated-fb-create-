@@ -20,20 +20,24 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import com.example.security.AppIntegrityGuard
+import com.example.ui.components.TamperProtectedLockScreen
+import com.example.ui.components.TelegramChannelDialog
 import com.example.ui.screens.AccountLogScreen
 import com.example.ui.screens.BrowserAutomationScreen
-import com.example.ui.screens.ProfileScreen
 import com.example.ui.theme.BrowserTheme
 import com.example.ui.viewmodel.AutoFillViewModel
 
-enum class NavigationTab { BROWSER, PROFILE, LOG }
+enum class NavigationTab { BROWSER, LOG }
 
 class MainActivity : ComponentActivity() {
 
@@ -52,9 +56,30 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainAppScreen(viewModel: AutoFillViewModel) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(NavigationTab.BROWSER) }
-    val profile by viewModel.currentProfile.collectAsState()
+    var showTelegramDialog by remember { mutableStateOf(true) }
+    var tamperReason by remember { mutableStateOf<String?>(null) }
     val accounts by viewModel.accounts.collectAsState()
+
+    LaunchedEffect(Unit) {
+        val integrity = AppIntegrityGuard.verifyIntegrity(context)
+        if (integrity is AppIntegrityGuard.IntegrityResult.Tampered) {
+            tamperReason = integrity.reason
+        }
+    }
+
+    // Tamper protection check overlay
+    tamperReason?.let { reason ->
+        TamperProtectedLockScreen(reason = reason)
+    }
+
+    // Telegram Channel popup
+    if (showTelegramDialog) {
+        TelegramChannelDialog(
+            onDismiss = { showTelegramDialog = false }
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -64,12 +89,6 @@ fun MainAppScreen(viewModel: AutoFillViewModel) {
                     onClick = { selectedTab = NavigationTab.BROWSER },
                     icon = { Icon(Icons.Default.Language, contentDescription = "Browser Automation") },
                     label = { Text("Browser Automation") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == NavigationTab.PROFILE,
-                    onClick = { selectedTab = NavigationTab.PROFILE },
-                    icon = { Icon(Icons.Default.Badge, contentDescription = "Profile Builder") },
-                    label = { Text("Profile Builder") }
                 )
                 NavigationBarItem(
                     selected = selectedTab == NavigationTab.LOG,
@@ -99,13 +118,7 @@ fun MainAppScreen(viewModel: AutoFillViewModel) {
         ) {
             when (selectedTab) {
                 NavigationTab.BROWSER -> BrowserAutomationScreen(
-                    viewModel = viewModel,
-                    profile = profile
-                )
-                NavigationTab.PROFILE -> ProfileScreen(
-                    viewModel = viewModel,
-                    profile = profile,
-                    onNavigateToBrowser = { selectedTab = NavigationTab.BROWSER }
+                    viewModel = viewModel
                 )
                 NavigationTab.LOG -> AccountLogScreen(
                     viewModel = viewModel,
@@ -115,3 +128,4 @@ fun MainAppScreen(viewModel: AutoFillViewModel) {
         }
     }
 }
+

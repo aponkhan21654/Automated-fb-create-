@@ -268,18 +268,16 @@ object AutoFillScriptEngine {
         """.trimIndent()
     }
 
-    // List of 10 Token Registration Links
+    // List of Token Registration Links (web.facebook.com & m.facebook.com)
     val TOKEN_MREG_URLS = listOf(
+        "https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901",
+        "https://web.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24",
+        "https://web.facebook.com/mreg?e_token=AbnQFQG4x_sBJ1BS1HgYin1ijehpcfvN7TMPWiX9EUc3ccMDKbce7V9FPzk7AbMoPsA7K5nonavUvw&d_hash=FBA71FDC8239E901",
+        "https://web.facebook.com/mreg?e_token=Abm6tgf10M_vK4TV2uawjG-ae8fFrddyzOf_FcUdJbRfjbkIcTrlIUJHoz7w6Vz4so8TOGWIcDgx0Q&d_hash=FBA71FDC8239E901",
+        "https://web.facebook.com/mreg?e_token=Abky_3xr70NBQr4YJM2br-fChpjgWA3dJqiJ6Lm8JJP0XyXEiCg_RIWjY1OtPlcLRduFEgVzOSaDFA&d_hash=FBA71FDC8239E901",
+        "https://m.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901",
         "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24&cid=256002347743983&app_version=310&tg=201&cct=1&src=1&soft=hjk",
-        "https://m.facebook.com/mreg?e_token=AbnQFQG4x_sBJ1BS1HgYin1ijehpcfvN7TMPWiX9EUc3ccMDKbce7V9FPzk7AbMoPsA7K5nonavUvw&d_hash=FBA",
-        "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5",
-        "https://m.facebook.com/mreg?e_token=Abm6tgf10M_vK4TV2uawjG-ae8fFrddyzOf_FcUdJbRfjbkIcTrlIUJHoz7w6Vz4so8TOGWIcDgx0Q&d_hash=FBA71FDC8239E901",
-        "https://m.facebook.com/mreg?e_token=Abky_3xr70NBQr4YJM2br-fChpjgWA3dJqiJ6Lm8JJP0XyXEiCg_RIWjY1OtPlcLRduFEgVzOSaDFA&d_hash=FBA71FDC8239E901",
-        "https://m.facebook.com/mreg?e_token=AbkdgkgPLqQ_xmavX1koYXq51xZkP-95Wq96iKw67-6q_CMRimxVmyI8Pa-8jYyE-h7bd9GTcnnylw&d_hash=FBA71FDC8239E901",
-        "https://m.facebook.com/mreg?e_token=AbliUrkbMtSgUBgB0Lh6uh-W5ZR_QiE1rB6pQ8mWYPiNQNIoVH7cnQaPiPq6ufSFa5IxfSeOoqHErg&d_hash=FBA71FDC8239E901",
-        "https://m.facebook.com/mreg?e_token=AbkdgkgPLqQ_xmavX1koYXq51xZkP-95Wq96iKw67-6q_CMRimxVmyI8Pa-8jYyE-h7bd9GTcnnylw&d_hash=FBA71FDC8239E90131BC4314E9B4E92E&cid=256002347743983&app_versio",
-        "https://m.facebook.com/mreg?e_token=AblG8NgRXtweT10VmrGryeTusY7yPTcp-YEfqQDK7R3YlKmypw9Ox4wsxK_-s82mFlfcrEwGwTOKNQ&d_hash=80AE5E5572F616E99079B0A2D3596C24&cid=256002347743983&app_version=3",
-        "https://m.facebook.com/mreg?e_token=Abky_3xr70NBQr4YJM2br-fChpjgWA3dJqiJ6Lm8JJP0XyXEiCg_RIWjY1OtPlcLRduFEgVzOSaDFA&d_hash=FBA71FDC8239E90131BC"
+        "https://m.facebook.com/mreg?e_token=AbliUrkbMtSgUBgB0Lh6uh-W5ZR_QiE1rB6pQ8mWYPiNQNIoVH7cnQaPiPq6ufSFa5IxfSeOoqHErg&d_hash=FBA71FDC8239E901"
     )
 
     fun getRandomTokenUrl(): String {
@@ -396,36 +394,68 @@ object AutoFillScriptEngine {
 
                     var nameStepDone = false;
                     var dobStepDone = false;
+                    var popupHandled = false;
 
                     async function processCurrentStep() {
-                        // STEP 1: First Name & Last Name (Surname)
+                        // 0. Handle Popup (OK click) if visible at any point
+                        var allBtns = document.querySelectorAll("button, div[role='button'], a[role='button'], input[type='button'], input[type='submit']");
+                        for (var k = 0; k < allBtns.length; k++) {
+                            var bTxt = (allBtns[k].innerText || allBtns[k].value || '').toLowerCase().trim();
+                            if (bTxt === 'ok' || bTxt === 'ঠিক আছে' || bTxt === 'অকে') {
+                                clickElement(allBtns[k]);
+                                popupHandled = true;
+                                await sleep(300, 600);
+                                break;
+                            }
+                        }
+
+                        // STEP 1: First Name & Last Name (Surname) -> Click Next
                         var fnEl = document.querySelector("input[name='firstname'], input[name*='first' i], input[placeholder*='First' i]");
                         var lnEl = document.querySelector("input[name='lastname'], input[name*='last' i], input[placeholder*='Surname' i], input[placeholder*='Last' i]");
                         var dayEl = document.querySelector("select[name='birthday_day'], #day");
-                        var epEl = document.querySelector("input[name='reg_email__'], input[type='tel'], input[type='email'], input[name*='email' i], input[name*='phone' i], input[name*='contact' i]");
 
                         if (fnEl && !nameStepDone) {
                             setVal(fnEl, '${profile.firstName}');
                             if (lnEl) setVal(lnEl, '${profile.lastName}');
                             nameStepDone = true;
 
-                            // If DOB select is NOT on this screen, it's step 1 of multi-step -> auto click Next
+                            // If DOB select is NOT on this screen, click Next
                             if (!dayEl) {
-                                await sleep(350, 600);
+                                await sleep(400, 700);
                                 var nxtBtn = findNextButton();
                                 if (nxtBtn) { clickElement(nxtBtn); return; }
                             }
                         }
 
-                        // STEP 2: Date of Birth & Gender
-                        var monthEl = document.querySelector("select[name='birthday_month'], #month");
-                        var yearEl = document.querySelector("select[name='birthday_year'], #year");
+                        // STEP 2: Date of Birth -> Click Next 2 times -> Age (20-40) -> Click Next
+                        var ageEl = document.querySelector("input[name='age'], input[id*='age' i], input[placeholder*='age' i], input[name*='birthday_age' i]");
+                        if ((dayEl || ageEl) && !dobStepDone) {
+                            if (dayEl && !ageEl) {
+                                // Click Next 2 times sequentially to bring up age entry
+                                var nxt1 = findNextButton();
+                                if (nxt1) clickElement(nxt1);
+                                await sleep(300, 500);
+                                var nxt2 = findNextButton();
+                                if (nxt2) clickElement(nxt2);
+                                await sleep(500, 800);
+                            }
 
-                        if (dayEl && !dobStepDone) {
-                            if (dayEl) { dayEl.value = '${profile.birthDay}'; dayEl.dispatchEvent(new Event('change', { bubbles: true })); dayEl.style.border = '2px solid #10B981'; }
-                            if (monthEl) { monthEl.value = '${profile.birthMonth}'; monthEl.dispatchEvent(new Event('change', { bubbles: true })); monthEl.style.border = '2px solid #10B981'; }
-                            if (yearEl) { yearEl.value = '${profile.birthYear}'; yearEl.dispatchEvent(new Event('change', { bubbles: true })); yearEl.style.border = '2px solid #10B981'; }
+                            // Re-check for age input box or set year fallback
+                            var ageInput = document.querySelector("input[name='age'], input[id*='age' i], input[placeholder*='age' i], input[name*='birthday_age' i], input[type='number']");
+                            var randomAge = Math.floor(Math.random() * 21) + 20; // Age 20 to 40
 
+                            if (ageInput) {
+                                setVal(ageInput, randomAge.toString());
+                            } else if (dayEl) {
+                                var yearEl = document.querySelector("select[name='birthday_year'], #year");
+                                if (yearEl) {
+                                    var currYear = new Date().getFullYear();
+                                    yearEl.value = (currYear - randomAge).toString();
+                                    yearEl.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }
+
+                            // Also select gender if available
                             var radios = document.querySelectorAll("input[type='radio'][name='sex'], input[type='radio'][name='gender']");
                             if (radios.length > 0) {
                                 var isFemale = '${profile.gender.lowercase()}' === 'female';
@@ -436,76 +466,43 @@ object AutoFillScriptEngine {
                             }
 
                             dobStepDone = true;
-
-                            // If Phone input is NOT on this screen, it's step 2 of multi-step -> auto click Next
-                            if (!epEl) {
-                                await sleep(350, 600);
-                                var nxtBtn2 = findNextButton();
-                                if (nxtBtn2) { clickElement(nxtBtn2); return; }
-                            }
+                            await sleep(400, 700);
+                            var nxt3 = findNextButton();
+                            if (nxt3) { clickElement(nxt3); return; }
                         }
 
-                        // STEP 3: Password field if present
+                        // STEP 3: Password from setting -> auto-fill password field
                         var pwEl = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
                         if (pwEl && !pwEl.value) {
                             setVal(pwEl, '${profile.password}');
                         }
 
-                        // STEP 4: Focus Phone / Email input & attach auto-submit on typing phone
+                        // STEP 4: Phone number field focus & auto-fill password + Sign Up when phone entered/Next clicked
                         var epEl = document.querySelector("input[name='reg_email__'], input[type='tel'], input[type='email'], input[name*='email' i], input[name*='phone' i], input[name*='contact' i]");
-                        if (!epEl) {
-                            var inputs = document.querySelectorAll("input:not([type='hidden'])");
-                            for (var i = 0; i < inputs.length; i++) {
-                                if (!inputs[i].value && inputs[i].type !== 'password') { epEl = inputs[i]; break; }
-                            }
-                        }
-
                         if (epEl) {
-                            epEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            epEl.focus();
-                            epEl.style.border = '3px solid #2563EB';
-                            epEl.style.backgroundColor = '#EFF6FF';
+                            if (!epEl.value) {
+                                epEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                epEl.focus();
+                                epEl.style.border = '3px solid #2563EB';
+                            }
 
-                            if (!epEl.__autoNextAttached) {
-                                epEl.__autoNextAttached = true;
+                            if (!epEl.__attachedSubmit) {
+                                epEl.__attachedSubmit = true;
 
-                                function triggerNextAndPassword() {
-                                    if (window.__phoneSubmitTriggered) return;
-                                    window.__phoneSubmitTriggered = true;
-
+                                function doSignUpSubmit() {
                                     setTimeout(async function() {
                                         var passField = document.querySelector("input[name='reg_passwd__'], input[type='password'], input[name*='pass' i]");
-                                        if (passField) {
-                                            setVal(passField, '${profile.password}');
-                                        }
-
-                                        await sleep(250, 450);
+                                        if (passField) setVal(passField, '${profile.password}');
+                                        await sleep(300, 600);
                                         var submitBtn = findSubmitButton();
-                                        if (submitBtn) {
-                                            clickElement(submitBtn);
-                                        }
-
-                                        await sleep(1000, 1600);
-                                        var passField2 = document.querySelector("input[type='password'], input[name*='pass' i]");
-                                        if (passField2 && !passField2.value) {
-                                            setVal(passField2, '${profile.password}');
-                                            await sleep(250, 450);
-                                            var submitBtn2 = findSubmitButton();
-                                            if (submitBtn2) clickElement(submitBtn2);
-                                        }
+                                        if (submitBtn) clickElement(submitBtn);
                                     }, 200);
                                 }
 
                                 epEl.addEventListener('input', function(e) {
-                                    var digits = e.target.value.replace(/[^0-9]/g, '');
-                                    if (digits.length >= 10 || e.target.value.includes('@')) {
-                                        triggerNextAndPassword();
-                                    }
-                                });
-
-                                epEl.addEventListener('blur', function(e) {
-                                    if (e.target.value.trim().length >= 6) {
-                                        triggerNextAndPassword();
+                                    var val = e.target.value.replace(/[^0-9]/g, '');
+                                    if (val.length >= 10 || e.target.value.includes('@')) {
+                                        doSignUpSubmit();
                                     }
                                 });
                             }
@@ -533,6 +530,150 @@ object AutoFillScriptEngine {
                 } catch(e) {
                     return 'ERROR: ' + e.message;
                 }
+            })();
+        """.trimIndent()
+    }
+
+    fun buildAutoFillScript(
+        password: String,
+        profile: GeneratedProfile = ProfileGenerator.generate(
+            customPassword = password,
+            passwordMode = ProfileGenerator.PasswordMode.CUSTOM_FIXED
+        )
+    ): String {
+        val safePassword = password.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("\n", "").replace("\r", "")
+        val safeFirstName = profile.firstName.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("\n", "").replace("\r", "")
+        val safeLastName = profile.lastName.replace("\\", "\\\\").replace("'", "\\'").replace("\"", "\\\"").replace("\n", "").replace("\r", "")
+
+        return """
+            (function() {
+                if (window.__autoFillTimer) {
+                    clearInterval(window.__autoFillTimer);
+                }
+
+                function setVal(selArray, val) {
+                    var el = null;
+                    if (Array.isArray(selArray)) {
+                        for (var i = 0; i < selArray.length; i++) {
+                            el = document.querySelector(selArray[i]);
+                            if (el) break;
+                        }
+                    } else if (typeof selArray === 'string') {
+                        el = document.querySelector(selArray);
+                    } else {
+                        el = selArray;
+                    }
+
+                    if (el) {
+                        if (el.value !== val) {
+                            el.value = val;
+                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            el.dispatchEvent(new Event('blur', { bubbles: true }));
+                            el.style.border = '2px solid #10B981';
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+
+                function clickBtn() {
+                    var b = document.querySelector('button[name="submit"]') || 
+                            document.querySelector('button.primary') || 
+                            document.querySelector('button[type="submit"]') || 
+                            document.querySelector('input[type="submit"]') || 
+                            (function() {
+                                var btns = document.querySelectorAll('button, input[type="button"], input[type="submit"], a[role="button"], div[role="button"]');
+                                for (var i = 0; i < btns.length; i++) {
+                                    var text = (btns[i].innerText || btns[i].value || '').toLowerCase();
+                                    if (text.includes('next') || text.includes('sign up') || text.includes('continue') || text.includes('পরবর্তী') || text.includes('সাইন আপ') || text.includes('आगे')) {
+                                        return btns[i];
+                                    }
+                                }
+                                return null;
+                            })();
+                    if (b) {
+                        b.click();
+                        return true;
+                    }
+                    return false;
+                }
+
+                var stepHandled = { name: false, dob: false, gender: false, password: false, phoneListener: false };
+                var attempts = 0;
+
+                window.__autoFillTimer = setInterval(function() {
+                    attempts++;
+                    if (attempts > 60) {
+                        clearInterval(window.__autoFillTimer);
+                        return;
+                    }
+
+                    // 1. First Name & Last Name Step
+                    var fnEl = document.querySelector('input[name="firstname"], input[name*="first" i], input[autocomplete="given-name"]');
+                    if (fnEl && !stepHandled.name) {
+                        setVal(['input[name="firstname"]', 'input[name*="first" i]', 'input[autocomplete="given-name"]'], '$safeFirstName');
+                        setVal(['input[name="lastname"]', 'input[name*="last" i]', 'input[autocomplete="family-name"]'], '$safeLastName');
+                        stepHandled.name = true;
+                        setTimeout(clickBtn, 350);
+                        return;
+                    }
+
+                    // 2. Mobile Phone Number / Email Step Detection
+                    var phoneEl = document.querySelector('input[name="reg_email__"], input[type="tel"], input[name*="phone" i], input[name*="contact" i]');
+                    if (phoneEl && !stepHandled.phoneListener) {
+                        stepHandled.phoneListener = true;
+                        phoneEl.addEventListener('input', function() {
+                            if (this.value && this.value.length >= 10) {
+                                setTimeout(function() {
+                                    clickBtn();
+                                }, 800);
+                            }
+                        });
+                        phoneEl.addEventListener('change', function() {
+                            if (this.value && this.value.length >= 8) {
+                                setTimeout(function() {
+                                    clickBtn();
+                                }, 500);
+                            }
+                        });
+                    }
+
+                    // 3. Date of Birth Step (Day, Month, Year)
+                    var dayEl = document.querySelector('select[name="birthday_day"], select[id="day"], #day, select[name*="day" i]');
+                    if (dayEl && !stepHandled.dob) {
+                        setVal(['select[name="birthday_day"]', 'select[id="day"]', '#day', 'select[name*="day" i]'], '${profile.birthDay}');
+                        setVal(['select[name="birthday_month"]', 'select[id="month"]', '#month', 'select[name*="month" i]'], '${profile.birthMonth}');
+                        setVal(['select[name="birthday_year"]', 'select[id="year"]', '#year', 'select[name*="year" i]'], '${profile.birthYear}');
+                        stepHandled.dob = true;
+                        setTimeout(clickBtn, 350);
+                        return;
+                    }
+
+                    // 4. Gender Step
+                    var radios = document.querySelectorAll("input[type='radio'][name='sex'], input[type='radio'][name='gender']");
+                    if (radios.length > 0 && !stepHandled.gender) {
+                        var isFemale = '${profile.gender.lowercase()}' === 'female';
+                        var targetRadio = isFemale ? radios[0] : (radios.length > 1 ? radios[1] : radios[0]);
+                        if (targetRadio) {
+                            targetRadio.checked = true;
+                            targetRadio.click();
+                            targetRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        stepHandled.gender = true;
+                        setTimeout(clickBtn, 350);
+                        return;
+                    }
+
+                    // 5. Password Step
+                    var passEl = document.querySelector('input[name="reg_passwd__"], input[type="password"], input[name*="pass" i]');
+                    if (passEl && !stepHandled.password) {
+                        setVal(['input[name="reg_passwd__"]', 'input[type="password"]', 'input[name*="pass" i]'], '$safePassword');
+                        stepHandled.password = true;
+                        setTimeout(clickBtn, 350);
+                        return;
+                    }
+                }, 400);
             })();
         """.trimIndent()
     }

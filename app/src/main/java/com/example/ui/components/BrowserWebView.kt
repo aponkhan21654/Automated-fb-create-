@@ -87,13 +87,6 @@ fun BrowserWebView(
                         errorResponse: WebResourceResponse?
                     ) {
                         super.onReceivedHttpError(view, request, errorResponse)
-                        val reqUrl = request?.url?.toString() ?: ""
-                        if (request?.isForMainFrame == true && (reqUrl.contains("limited.facebook.com") || errorResponse?.statusCode in 400..599)) {
-                            // Redirect back to working m.facebook.com registration
-                            view?.post {
-                                view.loadUrl("https://m.facebook.com/reg")
-                            }
-                        }
                     }
 
                     override fun onReceivedError(
@@ -103,11 +96,6 @@ fun BrowserWebView(
                         failingUrl: String?
                     ) {
                         super.onReceivedError(view, errorCode, description, failingUrl)
-                        if (failingUrl?.contains("limited.facebook.com") == true) {
-                            view?.post {
-                                view.loadUrl("https://m.facebook.com/reg")
-                            }
-                        }
                     }
 
                     override fun shouldInterceptRequest(

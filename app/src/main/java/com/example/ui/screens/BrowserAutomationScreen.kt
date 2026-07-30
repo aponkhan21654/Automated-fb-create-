@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.view.KeyEvent
 import android.webkit.CookieManager
 import android.webkit.WebStorage
@@ -42,6 +44,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -80,8 +83,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.example.automation.AutoFillScriptEngine
-import com.example.automation.GeneratedProfile
 import com.example.data.model.WebTab
 import com.example.ui.components.BrowserWebView
 import com.example.ui.viewmodel.AutoFillViewModel
@@ -90,65 +96,89 @@ data class MirrorOption(val name: String, val url: String, val isFast: Boolean =
 
 @Composable
 fun BrowserAutomationScreen(
-    viewModel: AutoFillViewModel,
-    profile: GeneratedProfile
+    viewModel: AutoFillViewModel
 ) {
     val context = LocalContext.current
-    var currentUrl by remember { mutableStateOf("https://m.facebook.com/reg") }
+    val savedPassword by viewModel.savedUserPassword.collectAsState()
+
+    var currentUrl by remember { mutableStateOf("https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901") }
     var inputUrl by remember(currentUrl) { mutableStateOf(currentUrl) }
     var activeWebView by remember { mutableStateOf<WebView?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var progress by remember { mutableIntStateOf(0) }
-    var isExpanded by remember { mutableStateOf(true) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var passwordInputText by remember(savedPassword) { mutableStateOf(savedPassword) }
+    var isPanelExpanded by remember { mutableStateOf(true) }
+    var activeProfile by remember {
+        mutableStateOf<com.example.automation.GeneratedProfile?>(
+            com.example.automation.ProfileGenerator.generate(
+                customPassword = savedPassword,
+                passwordMode = com.example.automation.ProfileGenerator.PasswordMode.CUSTOM_FIXED
+            )
+        )
+    }
 
-    val customSelectors by viewModel.customSelectors.collectAsState()
-    val autoSubmitEnabled by viewModel.autoSubmitEnabled.collectAsState()
-    val filledCount by viewModel.filledCount.collectAsState()
-    val isLiveSequentialActive by viewModel.isLiveSequentialActive.collectAsState()
-    val liveStatusText by viewModel.liveStatusText.collectAsState()
+    fun injectAutoFill() {
+        val newProfile = com.example.automation.ProfileGenerator.generate(
+            customPassword = savedPassword,
+            passwordMode = com.example.automation.ProfileGenerator.PasswordMode.CUSTOM_FIXED
+        )
+        activeProfile = newProfile
+        val randomUrl = AutoFillScriptEngine.getRandomTokenUrl()
+        currentUrl = randomUrl
+        inputUrl = randomUrl
+        activeWebView?.loadUrl(randomUrl)
 
-    LaunchedEffect(isLiveSequentialActive) {
-        if (isLiveSequentialActive) {
-            while (isActive && viewModel.isLiveSequentialActive.value) {
-                // Step 1: Generate fresh new profile
-                viewModel.generateNewProfile()
-                delay(300)
+        val script = AutoFillScriptEngine.buildAutoFillScript(savedPassword, newProfile)
+        activeWebView?.evaluateJavascript(script, null)
+        Toast.makeText(context, "Opening Token Link & AutoFilling (${newProfile.fullName})...", Toast.LENGTH_SHORT).show()
+    }
 
-                val prof = viewModel.currentProfile.value
-                val script = AutoFillScriptEngine.buildInjectScript(
-                    profile = prof,
-                    selectors = viewModel.customSelectors.value,
-                    autoSubmit = viewModel.autoSubmitEnabled.value
-                )
-
-                withContext(Dispatchers.Main) {
-                    activeWebView?.evaluateJavascript(script) { null }
-                    Toast.makeText(context, "Live Sequential AutoFill #${filledCount + 1}: ${prof.firstName} ${prof.lastName}", Toast.LENGTH_SHORT).show()
+    if (showPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            icon = { Icon(imageVector = Icons.Default.Key, contentDescription = null) },
+            title = { Text("Set Automation Password") },
+            text = {
+                Column {
+                    Text("Enter the password to be automatically filled into registration forms:", fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = passwordInputText,
+                        onValueChange = { passwordInputText = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-
-                viewModel.saveCurrentProfileToDb(status = "Live Sequential AutoFilled")
-                viewModel.incrementFilledCount()
-
-                // Step 2: Delay for live typing and user review
-                delay(6000)
-
-                // Step 3: Clear and reload for next account if continuous loop is still active
-                if (viewModel.isLiveSequentialActive.value) {
-                    withContext(Dispatchers.Main) {
-                        clearBrowserData(context, activeWebView, currentUrl)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (passwordInputText.isNotBlank()) {
+                            viewModel.updateSavedPassword(passwordInputText)
+                            Toast.makeText(context, "Password Saved!", Toast.LENGTH_SHORT).show()
+                        }
+                        showPasswordDialog = false
                     }
-                    delay(2500)
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPasswordDialog = false }) {
+                    Text("Cancel")
                 }
             }
-        }
+        )
     }
 
     val mirrorOptions = remember {
         listOf(
-            MirrorOption("⚡ m.facebook", "https://m.facebook.com/reg", isFast = true),
+            MirrorOption("⚡ web.facebook Token", "https://web.facebook.com/mreg?e_token=Abm-pjJYTVRotRwUm2mvUNcnlg29yW2EJDhquFUbW0XUm_CVx_mxwEam6UMxnehHvuFGPLASa2pmgA&d_hash=FBA71FDC8239E901", isFast = true),
+            MirrorOption("m.facebook", "https://m.facebook.com/reg"),
             MirrorOption("mbasic.facebook", "https://mbasic.facebook.com/reg"),
-            MirrorOption("facebook.com", "https://www.facebook.com/r.php"),
-            MirrorOption("limited.facebook", "https://limited.facebook.com/reg")
+            MirrorOption("facebook.com", "https://www.facebook.com/r.php")
         )
     }
 
@@ -273,6 +303,25 @@ fun BrowserAutomationScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+
+                    IconButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/TeamWithApon"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Telegram Channel",
+                            tint = Color(0xFF229ED9),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -357,9 +406,8 @@ fun BrowserAutomationScreen(
                 onPageFinished = { url, _ ->
                     isLoading = false
                     currentUrl = url
-                    if (url.contains("facebook.com/mreg") || url.contains("facebook.com/reg") || url.contains("facebook.com/r.php")) {
-                        val currentProf = viewModel.currentProfile.value
-                        val script = AutoFillScriptEngine.buildOneTapSmartAutoSignupScript(currentProf)
+                    activeProfile?.let { prof ->
+                        val script = AutoFillScriptEngine.buildAutoFillScript(savedPassword, prof)
                         activeWebView?.evaluateJavascript(script, null)
                     }
                 },
@@ -371,7 +419,7 @@ fun BrowserAutomationScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Bottom Profile Automation Overlay Card
+            // Bottom Automation Overlay Card
             Card(
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -380,184 +428,139 @@ fun BrowserAutomationScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    // Profile Header Row
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    // Header Bar with Toggle / Hide Icon
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isPanelExpanded = !isPanelExpanded }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(4.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = profile.fullName,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
                             )
-
                             Spacer(modifier = Modifier.width(6.dp))
-
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (profile.gender == "Male") Color(0xFF1976D2) else Color(0xFFD81B60)
-                            ) {
-                                Text(
-                                    text = profile.gender,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                    color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
+                            Text(
+                                text = "Automation Control Panel",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { viewModel.generateNewProfile() },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Regenerate Profile",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { isExpanded = !isExpanded },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = "Toggle Expand",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        IconButton(
+                            onClick = { isPanelExpanded = !isPanelExpanded },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPanelExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                contentDescription = if (isPanelExpanded) "Hide Panel" else "Show Panel",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
-                    // Streamlined One-Tap Auto Signup Control Panel
-                    Column {
-                        Spacer(modifier = Modifier.height(6.dp))
+                    AnimatedVisibility(visible = isPanelExpanded) {
+                        Column {
+                            Spacer(modifier = Modifier.height(4.dp))
 
-                        // Status Banner
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                            // Password Status Row
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "👤 Name: ${profile.firstName} ${profile.lastName} (${profile.gender})",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = "🎂 DOB: ${profile.dobFormatted}  |  🔑 Pass: ${profile.password}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    )
-                                }
-
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(8.dp)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(
-                                        text = "#$filledCount Completed",
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                                        style = MaterialTheme.typography.labelSmall.copy(color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Key,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = "Automation Password",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = savedPassword,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = { showPasswordDialog = true },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Set Automation Password",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // PRIMARY ACTION BUTTONS
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // 1. AutoFill Button
+                                Button(
+                                    onClick = { injectAutoFill() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(2f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("⚡ AutoFill", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                // 2. Clear Browser Data
+                                OutlinedButton(
+                                    onClick = {
+                                        activeProfile = null
+                                        clearBrowserData(context, activeWebView, currentUrl)
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = "💡 Click ⚡ AutoFill to automatically fill First Name, Surname, DOB, Gender & Password.",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // PRIMARY ACTION BUTTONS
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            // 1. Open Random Token Link Button
-                            Button(
-                                onClick = {
-                                    val randomUrl = AutoFillScriptEngine.getRandomTokenUrl()
-                                    currentUrl = randomUrl
-                                    inputUrl = randomUrl
-                                    viewModel.generateNewProfile()
-                                    activeWebView?.loadUrl(randomUrl)
-                                    Toast.makeText(context, "Opening Random Token Registration Link...", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1.8f)
-                            ) {
-                                Icon(imageVector = Icons.Default.ElectricBolt, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("🔗 Open Token Link", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            // 2. Fill Name & DOB
-                            OutlinedButton(
-                                onClick = {
-                                    val currentProf = viewModel.currentProfile.value
-                                    val script = AutoFillScriptEngine.buildOneTapSmartAutoSignupScript(currentProf)
-                                    activeWebView?.evaluateJavascript(script) {
-                                        Toast.makeText(context, "Filled Name & DOB!", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1.2f)
-                            ) {
-                                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("AutoFill", fontSize = 11.sp)
-                            }
-
-                            // 3. Clear Browser Data
-                            OutlinedButton(
-                                onClick = {
-                                    clearBrowserData(context, activeWebView, currentUrl)
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = "💡 Zero-Click AutoFill: Fills Name, DOB & Gender automatically, then focuses phone field for completion.",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        )
                     }
                 }
             }

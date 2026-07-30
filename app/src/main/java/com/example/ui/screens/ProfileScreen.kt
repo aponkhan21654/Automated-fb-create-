@@ -47,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,10 +71,11 @@ fun ProfileScreen(
     onNavigateToBrowser: () -> Unit
 ) {
     val context = LocalContext.current
+    val savedPass by viewModel.savedUserPassword.collectAsState()
     var selectedPreset by remember { mutableStateOf(ProfileGenerator.PresetType.BANGLADESHI) }
-    var passwordMode by remember { mutableStateOf(ProfileGenerator.PasswordMode.RANDOM_STRONG) }
+    var passwordMode by remember { mutableStateOf(ProfileGenerator.PasswordMode.CUSTOM_FIXED) }
     var useEmail by remember { mutableStateOf(true) }
-    var customPassword by remember { mutableStateOf("Pass#2026") }
+    var customPassword by remember(savedPass) { mutableStateOf(savedPass) }
     var presetDropdownExpanded by remember { mutableStateOf(false) }
 
     Column(
@@ -291,8 +293,11 @@ fun ProfileScreen(
 
                 OutlinedTextField(
                     value = customPassword,
-                    onValueChange = { customPassword = it },
-                    label = { Text("Custom Fixed Password") },
+                    onValueChange = {
+                        customPassword = it
+                        viewModel.updateSavedPassword(it)
+                    },
+                    label = { Text("Saved User Password (Used Every Time)") },
                     leadingIcon = { Icon(imageVector = Icons.Default.Key, contentDescription = null) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
