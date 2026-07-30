@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -35,12 +37,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Cookie
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -106,6 +115,7 @@ fun BrowserAutomationScreen(
     var currentUrl by remember { mutableStateOf(DEFAULT_URL) }
     var inputUrl by remember(currentUrl) { mutableStateOf(currentUrl) }
     var activeWebView by remember { mutableStateOf<WebView?>(null) }
+    var isDesktopMode by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var progress by remember { mutableIntStateOf(0) }
     var showPasswordDialog by remember { mutableStateOf(false) }
@@ -185,13 +195,14 @@ fun BrowserAutomationScreen(
         )
     }
 
-    val dummyTab = remember(currentUrl) {
+    val dummyTab = remember(currentUrl, isDesktopMode) {
         WebTab(
             id = "auto_tab",
             url = currentUrl,
             title = "Browser Automation",
             isLoading = isLoading,
-            progress = progress
+            progress = progress,
+            isDesktopMode = isDesktopMode
         )
     }
 
@@ -209,122 +220,75 @@ fun BrowserAutomationScreen(
                 .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             Column(modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp)) {
+                // 6 Top Action Buttons Row (Desktop, Main Link, UID Copy, Password Save, Cookie Save, Clear Web)
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    IconButton(
-                        onClick = { activeWebView?.goBack() },
-                        enabled = activeWebView?.canGoBack() == true,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { activeWebView?.goForward() },
-                        enabled = activeWebView?.canGoForward() == true,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Forward",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // Omnibox URL Bar
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(40.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = inputUrl,
-                                onValueChange = { inputUrl = it },
-                                placeholder = { Text("Enter URL", fontSize = 13.sp) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                                keyboardActions = KeyboardActions(onGo = {
-                                    val formatted = formatUrl(inputUrl)
-                                    currentUrl = formatted
-                                    activeWebView?.loadUrl(formatted)
-                                }),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color.Transparent,
-                                    unfocusedBorderColor = Color.Transparent
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .testTag("url_input_field")
-                            )
-
-                            if (inputUrl.isNotBlank()) {
-                                IconButton(
-                                    onClick = { inputUrl = "" },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear URL",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { activeWebView?.reload() },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Reload",
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { clearBrowserData(context, activeWebView, currentUrl) },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = "Clear Browser",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
+                    // 1. Desktop mode on/off
+                    ActionTileButton(
+                        icon = Icons.Default.Computer,
+                        contentDescription = "Desktop Mode",
+                        isActive = isDesktopMode,
                         onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/TeamWithApon"))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                            isDesktopMode = !isDesktopMode
+                            Toast.makeText(
+                                context,
+                                if (isDesktopMode) "Desktop Mode ON 🖥️" else "Mobile Mode ON 📱",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            activeWebView?.reload()
                         },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Telegram Channel",
-                            tint = Color(0xFF229ED9),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 2. Main link open
+                    ActionTileButton(
+                        icon = Icons.Default.Language,
+                        contentDescription = "Main Link Open",
+                        onClick = {
+                            currentUrl = DEFAULT_URL
+                            inputUrl = DEFAULT_URL
+                            activeWebView?.loadUrl(DEFAULT_URL)
+                            Toast.makeText(context, "Opened Main Link 🌐", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 3. UID copy
+                    ActionTileButton(
+                        icon = Icons.Default.Person,
+                        contentDescription = "UID Copy",
+                        onClick = { copyFacebookUidToClipboard(context, currentUrl) },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 4. Password save
+                    ActionTileButton(
+                        icon = Icons.Default.Key,
+                        contentDescription = "Password Save",
+                        onClick = { showPasswordDialog = true },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 5. Cookie save
+                    ActionTileButton(
+                        icon = Icons.Default.Cookie,
+                        contentDescription = "Cookie Save",
+                        onClick = { copyCookiesToClipboard(context, currentUrl) },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // 6. Clear web
+                    ActionTileButton(
+                        icon = Icons.Default.Delete,
+                        contentDescription = "Clear Web",
+                        onClick = {
+                            activeProfile = null
+                            clearBrowserData(context, activeWebView, currentUrl)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -473,100 +437,59 @@ fun BrowserAutomationScreen(
                         Column {
                             Spacer(modifier = Modifier.height(4.dp))
 
-                            // Password Status Row
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
+                            // ONLY AutoFill Button
+                            Button(
+                                onClick = { injectAutoFill() },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Key,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Column {
-                                            Text(
-                                                text = "Automation Password",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = savedPassword,
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                                            )
-                                        }
-                                    }
-
-                                    IconButton(
-                                        onClick = { showPasswordDialog = true },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Set Automation Password",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // PRIMARY ACTION BUTTONS
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // 1. AutoFill Button
-                                Button(
-                                    onClick = { injectAutoFill() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(2f)
-                                ) {
-                                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⚡ AutoFill", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                                }
-
-                                // 2. Clear Browser Data
-                                OutlinedButton(
-                                    onClick = {
-                                        activeProfile = null
-                                        clearBrowserData(context, activeWebView, currentUrl)
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Icon(imageVector = Icons.Default.DeleteSweep, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(15.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Clear", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
-                                }
+                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("⚡ AutoFill", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
 
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "💡 Click ⚡ AutoFill to automatically fill First Name, Surname, DOB, Gender & Password.",
+                                text = "💡 Use top toolbar buttons for Desktop mode, Main Link, UID copy, Password save, Cookie copy & Clear web.",
                                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ActionTileButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    iconTint: Color = MaterialTheme.colorScheme.primary
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        modifier = modifier.height(48.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (isActive) Color.White else iconTint,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -597,5 +520,68 @@ private fun formatUrl(url: String): String {
         trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
         trimmed.contains(".") -> "https://$trimmed"
         else -> "https://www.google.com/search?q=$trimmed"
+    }
+}
+
+private fun copyCookiesToClipboard(context: Context, currentUrl: String) {
+    val cookies = try {
+        val cm = CookieManager.getInstance()
+        var c = cm.getCookie(currentUrl) ?: ""
+        if (c.isBlank()) {
+            c = cm.getCookie("https://facebook.com")
+                ?: cm.getCookie("https://m.facebook.com")
+                ?: cm.getCookie("https://web.facebook.com")
+                ?: cm.getCookie("https://limited.facebook.com")
+                ?: ""
+        }
+        c
+    } catch (e: Exception) {
+        ""
+    }
+
+    if (cookies.isNotBlank()) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Browser Cookies", cookies)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "Cookies copied to clipboard! 📋", Toast.LENGTH_SHORT).show()
+    } else {
+        Toast.makeText(context, "No cookies found for current page!", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun copyFacebookUidToClipboard(context: Context, currentUrl: String) {
+    val cm = CookieManager.getInstance()
+    val domains = listOf(
+        currentUrl,
+        "https://facebook.com",
+        "https://m.facebook.com",
+        "https://web.facebook.com",
+        "https://limited.facebook.com",
+        "https://mbasic.facebook.com"
+    )
+    val combinedCookies = domains.mapNotNull {
+        try { cm.getCookie(it) } catch (e: Exception) { null }
+    }.joinToString("; ")
+
+    // 1. Check c_user in cookies
+    var uid = Regex("""c_user=(\d+)""").find(combinedCookies)?.groupValues?.get(1)
+
+    // 2. Check i_user in cookies
+    if (uid == null) {
+        uid = Regex("""i_user=(\d+)""").find(combinedCookies)?.groupValues?.get(1)
+    }
+
+    // 3. Check URL query parameters
+    if (uid == null) {
+        uid = Regex("""[?&](?:id|uid)=(\d+)""").find(currentUrl)?.groupValues?.get(1)
+    }
+
+    if (!uid.isNullOrBlank()) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Facebook UID", uid)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "FB UID: $uid copied! 🆔", Toast.LENGTH_SHORT).show()
+    } else {
+        Toast.makeText(context, "FB UID not found! Please log in first.", Toast.LENGTH_SHORT).show()
     }
 }

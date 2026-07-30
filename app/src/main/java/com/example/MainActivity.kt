@@ -58,7 +58,10 @@ class MainActivity : ComponentActivity() {
 fun MainAppScreen(viewModel: AutoFillViewModel) {
     val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(NavigationTab.BROWSER) }
-    var showTelegramDialog by remember { mutableStateOf(true) }
+    val prefs = remember { context.getSharedPreferences("app_settings", android.content.Context.MODE_PRIVATE) }
+    var showTelegramDialog by remember {
+        mutableStateOf(!prefs.getBoolean("has_shown_telegram_popup", false))
+    }
     var tamperReason by remember { mutableStateOf<String?>(null) }
     val accounts by viewModel.accounts.collectAsState()
 
@@ -74,10 +77,13 @@ fun MainAppScreen(viewModel: AutoFillViewModel) {
         TamperProtectedLockScreen(reason = reason)
     }
 
-    // Telegram Channel popup
+    // Telegram Channel popup (Only first time after install)
     if (showTelegramDialog) {
         TelegramChannelDialog(
-            onDismiss = { showTelegramDialog = false }
+            onDismiss = {
+                prefs.edit().putBoolean("has_shown_telegram_popup", true).apply()
+                showTelegramDialog = false
+            }
         )
     }
 
