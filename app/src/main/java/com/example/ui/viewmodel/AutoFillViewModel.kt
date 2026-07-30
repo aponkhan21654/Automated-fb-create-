@@ -108,6 +108,33 @@ class AutoFillViewModel(application: Application) : AndroidViewModel(application
         )
     }
 
+    // Save account with UID, Password, and Cookie
+    fun saveAccount(
+        uid: String,
+        password: String,
+        cookie: String,
+        firstName: String = "",
+        lastName: String = ""
+    ) {
+        viewModelScope.launch {
+            val prof = currentProfile.value
+            val entity = AccountEntity(
+                uid = uid,
+                emailOrPhone = if (uid.isNotBlank()) uid else prof.emailOrPhone,
+                password = if (password.isNotBlank()) password else savedUserPassword.value,
+                cookie = cookie,
+                firstName = if (firstName.isNotBlank()) firstName else prof.firstName,
+                lastName = if (lastName.isNotBlank()) lastName else prof.lastName,
+                birthDay = prof.birthDay,
+                birthMonth = prof.birthMonth,
+                birthYear = prof.birthYear,
+                gender = prof.gender,
+                status = "Saved"
+            )
+            repository.insert(entity)
+        }
+    }
+
     // Save current profile to Room DB
     fun saveCurrentProfileToDb(status: String = "Registered") {
         viewModelScope.launch {

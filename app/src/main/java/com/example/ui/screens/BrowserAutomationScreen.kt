@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -215,11 +216,13 @@ fun BrowserAutomationScreen(
         Surface(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 4.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp, horizontal = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(top = 4.dp, bottom = 4.dp, start = 8.dp, end = 8.dp)
+            ) {
                 // 6 Top Action Buttons Row (Desktop, Main Link, UID Copy, Password Save, Cookie Save, Clear Web)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -386,79 +389,40 @@ fun BrowserAutomationScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Bottom Automation Overlay Card
-            Card(
-                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            // Floating Bottom Row with AutoFill & Save Account Buttons
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    // Header Bar with Toggle / Hide Icon
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isPanelExpanded = !isPanelExpanded }
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Automation Control Panel",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                Button(
+                    onClick = { injectAutoFill() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("⚡ AutoFill", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
 
-                        IconButton(
-                            onClick = { isPanelExpanded = !isPanelExpanded },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isPanelExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                contentDescription = if (isPanelExpanded) "Hide Panel" else "Show Panel",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    AnimatedVisibility(visible = isPanelExpanded) {
-                        Column {
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // ONLY AutoFill Button
-                            Button(
-                                onClick = { injectAutoFill() },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("⚡ AutoFill", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                text = "💡 Use top toolbar buttons for Desktop mode, Main Link, UID copy, Password save, Cookie copy & Clear web.",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            )
-                        }
-                    }
+                Button(
+                    onClick = {
+                        saveAccountToDb(context, currentUrl, savedPassword, activeProfile, viewModel)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("💾 Save Account", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -476,9 +440,9 @@ private fun ActionTileButton(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-        modifier = modifier.height(48.dp)
+        modifier = modifier.height(40.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -584,4 +548,57 @@ private fun copyFacebookUidToClipboard(context: Context, currentUrl: String) {
     } else {
         Toast.makeText(context, "FB UID not found! Please log in first.", Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun saveAccountToDb(
+    context: Context,
+    currentUrl: String,
+    savedPassword: String,
+    activeProfile: com.example.automation.GeneratedProfile?,
+    viewModel: AutoFillViewModel
+) {
+    val cm = CookieManager.getInstance()
+    val domains = listOf(
+        currentUrl,
+        "https://facebook.com",
+        "https://m.facebook.com",
+        "https://web.facebook.com",
+        "https://limited.facebook.com",
+        "https://mbasic.facebook.com"
+    )
+    val combinedCookies = domains.mapNotNull {
+        try { cm.getCookie(it) } catch (e: Exception) { null }
+    }.joinToString("; ")
+
+    // Extract UID
+    var uid = Regex("""c_user=(\d+)""").find(combinedCookies)?.groupValues?.get(1)
+    if (uid == null) {
+        uid = Regex("""i_user=(\d+)""").find(combinedCookies)?.groupValues?.get(1)
+    }
+    if (uid == null) {
+        uid = Regex("""[?&](?:id|uid)=(\d+)""").find(currentUrl)?.groupValues?.get(1)
+    }
+    if (uid.isNullOrBlank()) {
+        uid = ""
+    }
+
+    // Password
+    val password = savedPassword.ifBlank { activeProfile?.password ?: "" }
+
+    // Cookie
+    var cookie = cm.getCookie(currentUrl) ?: ""
+    if (cookie.isBlank()) {
+        cookie = combinedCookies
+    }
+
+    viewModel.saveAccount(
+        uid = uid,
+        password = password,
+        cookie = cookie,
+        firstName = activeProfile?.firstName ?: "",
+        lastName = activeProfile?.lastName ?: ""
+    )
+
+    val label = if (uid.isNotBlank()) "UID: $uid" else "Account"
+    Toast.makeText(context, "$label Saved to Account Log! 💾", Toast.LENGTH_SHORT).show()
 }

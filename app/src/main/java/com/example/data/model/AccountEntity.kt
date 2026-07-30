@@ -17,5 +17,7 @@ data class AccountEntity(
     val gender: String,
     val createdAt: Long = System.currentTimeMillis(),
     val status: String = "Registered",
-    val notes: String = ""
+    val notes: String = "",
+    val cookie: String = "",
+    val uid: String = ""
 )
