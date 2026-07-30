@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import com.example.activation.ActivationDialog
+import com.example.activation.ActivationManager
 import com.example.security.AppIntegrityGuard
 import com.example.ui.components.TamperProtectedLockScreen
 import com.example.ui.components.TelegramChannelDialog
@@ -48,7 +50,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BrowserTheme {
+                val context = LocalContext.current
+                var isActivated by remember { mutableStateOf(ActivationManager.isActivated(context)) }
+
                 MainAppScreen(viewModel = viewModel)
+
+                if (!isActivated) {
+                    ActivationDialog(
+                        onActivationSuccess = {
+                            isActivated = true
+                        }
+                    )
+                }
             }
         }
     }
